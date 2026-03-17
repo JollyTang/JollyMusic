@@ -5,7 +5,7 @@
     </view>
     <view class="card-info">
       <text class="card-name">{{ playlist.name }}</text>
-      <text class="card-count">{{ playlist.track_count || 0 }} 首</text>
+      <text class="card-count">{{ playlist.tracks?.length || 0 }} 首</text>
     </view>
     <view class="card-actions" @tap.stop="$emit('delete')">
       <text class="delete-btn">删除</text>

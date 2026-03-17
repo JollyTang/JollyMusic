@@ -44,24 +44,23 @@ export interface AudioStream {
   mimeType: string;
 }
 
-export interface Playlist {
-  id: number;
-  name: string;
-  cover: string;
-  track_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Track {
-  id: number;
+  id: string;
   bvid: string;
   cid: number;
   title: string;
   artist: string;
   cover: string;
   duration: number;
-  sort_order: number;
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  cover: string;
+  tracks: Track[];
+  created_at: number;
+  updated_at: number;
 }
 
 export const api = {
@@ -75,41 +74,5 @@ export const api = {
 
   getAudioProxyUrl(url: string) {
     return `${BASE_URL}/audio/proxy?url=${encodeURIComponent(url)}`;
-  },
-
-  getPlaylists() {
-    return request<Playlist[]>('/playlists');
-  },
-
-  createPlaylist(name: string, cover?: string) {
-    return request<{ id: number }>('/playlists', {
-      method: 'POST',
-      data: { name, cover },
-    } as any);
-  },
-
-  deletePlaylist(id: number) {
-    return request('/playlists/' + id, { method: 'DELETE' } as any);
-  },
-
-  getPlaylistTracks(id: number) {
-    return request<Track[]>(`/playlists/${id}/tracks`);
-  },
-
-  addTrackToPlaylist(playlistId: number, track: {
-    bvid: string; cid: number; title: string;
-    artist: string; cover: string; duration: number;
-  }) {
-    return request(`/playlists/${playlistId}/tracks`, {
-      method: 'POST',
-      data: track,
-    } as any);
-  },
-
-  removeTrackFromPlaylist(playlistId: number, trackId: number) {
-    return request(`/playlists/${playlistId}/tracks`, {
-      method: 'DELETE',
-      data: { trackId },
-    } as any);
   },
 };

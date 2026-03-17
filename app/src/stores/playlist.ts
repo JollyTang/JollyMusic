@@ -1,77 +1,108 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { api, type Playlist, type Track } from '../utils/api';
+import type { Playlist, Track } from '../utils/api';
+
+const STORAGE_KEY = 'lm_playlists';
+
+function genId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function loadFromStorage(): Playlist[] {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(data: Playlist[]) {
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(data));
+}
 
 export const usePlaylistStore = defineStore('playlist', () => {
-  const playlists = ref<Playlist[]>([]);
+  const playlists = ref<Playlist[]>(loadFromStorage());
   const currentTracks = ref<Track[]>([]);
   const loading = ref(false);
 
-  async function fetchPlaylists() {
-    loading.value = true;
-    try {
-      playlists.value = await api.getPlaylists();
-    } catch (err: any) {
-      uni.showToast({ title: err.message || '加载失败', icon: 'none' });
-    } finally {
-      loading.value = false;
-    }
+  function persist() {
+    saveToStorage(playlists.value);
   }
 
-  async function createPlaylist(name: string) {
-    try {
-      await api.createPlaylist(name);
-      await fetchPlaylists();
-      uni.showToast({ title: '创建成功', icon: 'success' });
-    } catch (err: any) {
-      uni.showToast({ title: err.message || '创建失败', icon: 'none' });
-    }
+  function fetchPlaylists() {
+    playlists.value = loadFromStorage();
   }
 
-  async function deletePlaylist(id: number) {
-    try {
-      await api.deletePlaylist(id);
-      playlists.value = playlists.value.filter((p) => p.id !== id);
-      uni.showToast({ title: '已删除', icon: 'success' });
-    } catch (err: any) {
-      uni.showToast({ title: err.message || '删除失败', icon: 'none' });
-    }
+  function createPlaylist(name: string) {
+    const pl: Playlist = {
+      id: genId(),
+      name,
+      cover: '',
+      tracks: [],
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    };
+    playlists.value.unshift(pl);
+    persist();
+    uni.showToast({ title: '创建成功', icon: 'success' });
   }
 
-  async function fetchTracks(playlistId: number) {
-    loading.value = true;
-    try {
-      currentTracks.value = await api.getPlaylistTracks(playlistId);
-    } catch (err: any) {
-      uni.showToast({ title: err.message || '加载失败', icon: 'none' });
-    } finally {
-      loading.value = false;
-    }
+  function deletePlaylist(id: string) {
+    playlists.value = playlists.value.filter((p) => p.id !== id);
+    persist();
+    uni.showToast({ title: '已删除', icon: 'success' });
   }
 
-  async function addTrack(
-    playlistId: number,
-    track: {
-      bvid: string; cid: number; title: string;
-      artist: string; cover: string; duration: number;
-    }
+  function fetchTracks(playlistId: string) {
+    const pl = playlists.value.find((p) => p.id === playlistId);
+    currentTracks.value = pl ? [...pl.tracks] : [];
+  }
+
+  function addTrack(
+    playlistId: string,
+    track: { bvid: string; cid: number; title: string; artist: string; cover: string; duration: number }
   ) {
-    try {
-      await api.addTrackToPlaylist(playlistId, track);
-      uni.showToast({ title: '已添加', icon: 'success' });
-    } catch (err: any) {
-      uni.showToast({ title: err.message || '添加失败', icon: 'none' });
+    const pl = playlists.value.find((p) => p.id === playlistId);
+    if (!pl) {
+      uni.showToast({ title: '歌单不存在', icon: 'none' });
+      return;
     }
+
+    const exists = pl.tracks.some((t) => t.bvid === track.bvid && t.cid === track.cid);
+    if (exists) {
+      uni.showToast({ title: '曲目已在歌单中', icon: 'none' });
+      return;
+    }
+
+    pl.tracks.push({ ...track, id: genId() });
+    pl.updated_at = Date.now();
+    persist();
+    uni.showToast({ title: '已添加', icon: 'success' });
   }
 
-  async function removeTrack(playlistId: number, trackId: number) {
-    try {
-      await api.removeTrackFromPlaylist(playlistId, trackId);
-      currentTracks.value = currentTracks.value.filter((t) => t.id !== trackId);
-      uni.showToast({ title: '已移除', icon: 'success' });
-    } catch (err: any) {
-      uni.showToast({ title: err.message || '移除失败', icon: 'none' });
-    }
+  function removeTrack(playlistId: string, trackId: string) {
+    const pl = playlists.value.find((p) => p.id === playlistId);
+    if (!pl) return;
+
+    pl.tracks = pl.tracks.filter((t) => t.id !== trackId);
+    pl.updated_at = Date.now();
+    persist();
+    currentTracks.value = [...pl.tracks];
+    uni.showToast({ title: '已移除', icon: 'success' });
+  }
+
+  function getPlaylistById(id: string): Playlist | undefined {
+    return playlists.value.find((p) => p.id === id);
+  }
+
+  function importPlaylist(pl: Playlist) {
+    pl.id = genId();
+    pl.created_at = Date.now();
+    pl.updated_at = Date.now();
+    pl.tracks.forEach((t) => { t.id = genId(); });
+    playlists.value.unshift(pl);
+    persist();
   }
 
   return {
@@ -84,5 +115,7 @@ export const usePlaylistStore = defineStore('playlist', () => {
     fetchTracks,
     addTrack,
     removeTrack,
+    getPlaylistById,
+    importPlaylist,
   };
 });

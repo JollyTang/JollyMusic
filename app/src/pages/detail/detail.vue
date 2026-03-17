@@ -80,7 +80,7 @@ async function loadVideo() {
 function playTrack(page: { cid: number; page: number; part: string; duration: number }) {
   if (!videoInfo.value) return;
   const track = {
-    id: 0,
+    id: `${videoInfo.value.bvid}_${page.cid}`,
     bvid: videoInfo.value.bvid,
     cid: page.cid,
     title: videoInfo.value.pages.length > 1
@@ -89,7 +89,6 @@ function playTrack(page: { cid: number; page: number; part: string; duration: nu
     artist: videoInfo.value.owner.name,
     cover: videoInfo.value.cover,
     duration: page.duration,
-    sort_order: 0,
   };
   playerStore.addToQueue(track);
   playerStore.play(track);

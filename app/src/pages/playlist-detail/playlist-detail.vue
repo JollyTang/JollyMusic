@@ -20,6 +20,9 @@
             </view>
             <text class="play-all-text">播放全部 ({{ playlistStore.currentTracks.length }})</text>
           </view>
+          <view class="share-btn" @tap="sharePlaylist">
+            <text class="share-btn-text">分享</text>
+          </view>
         </view>
 
         <TrackItem
@@ -34,6 +37,25 @@
       </view>
     </view>
 
+    <!-- share code modal -->
+    <view v-if="showShareModal" class="modal-overlay" @tap="showShareModal = false">
+      <view class="modal-panel" @tap.stop>
+        <text class="modal-title">分享歌单</text>
+        <text class="modal-desc">复制以下分享码发给朋友，对方可一键导入</text>
+        <view class="code-box">
+          <text class="code-text" selectable>{{ shareCode }}</text>
+        </view>
+        <view class="modal-actions">
+          <view class="modal-btn modal-btn-primary" @tap="copyShareCode">
+            <text class="modal-btn-text">复制分享码</text>
+          </view>
+          <view class="modal-btn" @tap="showShareModal = false">
+            <text class="modal-btn-text-secondary">关闭</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <MiniPlayer />
   </view>
 </template>
@@ -42,18 +64,21 @@
 import { ref, onMounted } from 'vue';
 import { usePlaylistStore } from '../../stores/playlist';
 import { usePlayerStore } from '../../stores/player';
+import { generateShareCode } from '../../utils/share';
 import TrackItem from '../../components/track-item/track-item.vue';
 import MiniPlayer from '../../components/mini-player/mini-player.vue';
 import type { Track } from '../../utils/api';
 
 const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
-const playlistId = ref(0);
+const playlistId = ref('');
+const showShareModal = ref(false);
+const shareCode = ref('');
 
 onMounted(() => {
   const pages = getCurrentPages();
   const page = pages[pages.length - 1] as any;
-  playlistId.value = Number(page.$page?.options?.id || page.options?.id || 0);
+  playlistId.value = page.$page?.options?.id || page.options?.id || '';
   if (playlistId.value) {
     playlistStore.fetchTracks(playlistId.value);
   }
@@ -82,6 +107,25 @@ function confirmRemove(track: Track) {
       if (res.confirm) {
         playlistStore.removeTrack(playlistId.value, track.id);
       }
+    },
+  });
+}
+
+function sharePlaylist() {
+  const pl = playlistStore.getPlaylistById(playlistId.value);
+  if (!pl || pl.tracks.length === 0) {
+    uni.showToast({ title: '歌单为空，无法分享', icon: 'none' });
+    return;
+  }
+  shareCode.value = generateShareCode(pl);
+  showShareModal.value = true;
+}
+
+function copyShareCode() {
+  uni.setClipboardData({
+    data: shareCode.value,
+    success: () => {
+      uni.showToast({ title: '已复制到剪贴板', icon: 'success' });
     },
   });
 }
@@ -128,23 +172,14 @@ function confirmRemove(track: Track) {
   padding: 180rpx 0;
 }
 
-.empty-icon {
-  font-size: 80rpx;
-  margin-bottom: 24rpx;
-}
-
-.empty-text {
-  font-size: 32rpx;
-  color: #8e8e93;
-  margin-bottom: 12rpx;
-}
-
-.empty-hint {
-  font-size: 26rpx;
-  color: #c7c7cc;
-}
+.empty-icon { font-size: 80rpx; margin-bottom: 24rpx; }
+.empty-text { font-size: 32rpx; color: #8e8e93; margin-bottom: 12rpx; }
+.empty-hint { font-size: 26rpx; color: #c7c7cc; }
 
 .list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 16rpx;
 }
 
@@ -165,15 +200,99 @@ function confirmRemove(track: Track) {
   justify-content: center;
 }
 
-.play-all-icon {
-  font-size: 22rpx;
-  color: #ffffff;
-  margin-left: 4rpx;
+.play-all-icon { font-size: 22rpx; color: #ffffff; margin-left: 4rpx; }
+.play-all-text { font-size: 30rpx; color: #1d1d1f; font-weight: 500; }
+
+.share-btn {
+  padding: 12rpx 28rpx;
+  background-color: #ffffff;
+  border-radius: 30rpx;
+  border: 2rpx solid #e5e5ea;
 }
 
-.play-all-text {
-  font-size: 30rpx;
-  color: #1d1d1f;
+.share-btn-text {
+  font-size: 26rpx;
+  color: #fb7299;
   font-weight: 500;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-panel {
+  width: 85%;
+  max-width: 600rpx;
+  background-color: #ffffff;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1d1d1f;
+  display: block;
+  text-align: center;
+  margin-bottom: 12rpx;
+}
+
+.modal-desc {
+  font-size: 26rpx;
+  color: #8e8e93;
+  display: block;
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+
+.code-box {
+  background-color: #f2f2f7;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 28rpx;
+  max-height: 300rpx;
+  overflow-y: auto;
+  word-break: break-all;
+}
+
+.code-text {
+  font-size: 24rpx;
+  color: #3c3c43;
+  line-height: 1.6;
+  font-family: monospace;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.modal-btn {
+  padding: 22rpx;
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+.modal-btn-primary {
+  background: linear-gradient(135deg, #fb7299, #f04e7d);
+}
+
+.modal-btn-text {
+  font-size: 30rpx;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.modal-btn-text-secondary {
+  font-size: 28rpx;
+  color: #8e8e93;
 }
 </style>
