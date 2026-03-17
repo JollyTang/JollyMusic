@@ -1,0 +1,77 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "ListenMusic",
+        "navigationBarBackgroundColor": "#ffffff",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f5f7"
+      }
+    },
+    {
+      "path": "pages/detail/detail",
+      "style": {
+        "navigationBarTitleText": "视频详情",
+        "navigationBarBackgroundColor": "#ffffff",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f5f7"
+      }
+    },
+    {
+      "path": "pages/player/player",
+      "style": {
+        "navigationBarTitleText": "",
+        "navigationStyle": "custom",
+        "backgroundColor": "#1a1a2e"
+      }
+    },
+    {
+      "path": "pages/playlists/playlists",
+      "style": {
+        "navigationBarTitleText": "我的歌单",
+        "navigationBarBackgroundColor": "#ffffff",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f5f7"
+      }
+    },
+    {
+      "path": "pages/playlist-detail/playlist-detail",
+      "style": {
+        "navigationBarTitleText": "歌单详情",
+        "navigationBarBackgroundColor": "#ffffff",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f5f7"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#8e8e93",
+    "selectedColor": "#fb7299",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "height": "56px",
+    "fontSize": "11px",
+    "iconWidth": "27px",
+    "spacing": "3px",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "发现",
+        "iconPath": "static/tab-discover.png",
+        "selectedIconPath": "static/tab-discover-active.png"
+      },
+      {
+        "pagePath": "pages/playlists/playlists",
+        "text": "歌单",
+        "iconPath": "static/tab-playlist.png",
+        "selectedIconPath": "static/tab-playlist-active.png"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f5f7"
+  }
+}
