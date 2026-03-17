@@ -10,6 +10,9 @@
         <text class="mini-artist">{{ playerStore.currentTrack.artist }}</text>
       </view>
       <view class="mini-controls">
+        <view class="mini-btn" @tap.stop="addToPlaylist">
+          <text class="mini-fav-icon">♡</text>
+        </view>
         <view class="mini-btn" @tap.stop="playerStore.togglePlay()">
           <text class="mini-play-icon">{{ playerStore.isPlaying ? '⏸' : '▶' }}</text>
         </view>
@@ -24,8 +27,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { usePlayerStore } from '../../stores/player';
+import { usePlaylistStore } from '../../stores/playlist';
 
 const playerStore = usePlayerStore();
+const playlistStore = usePlaylistStore();
 
 const progressPercent = computed(() => {
   if (!playerStore.totalDuration) return 0;
@@ -34,6 +39,39 @@ const progressPercent = computed(() => {
 
 function goPlayer() {
   uni.navigateTo({ url: '/pages/player/player' });
+}
+
+async function addToPlaylist() {
+  const track = playerStore.currentTrack;
+  if (!track) return;
+
+  await playlistStore.fetchPlaylists();
+
+  if (playlistStore.playlists.length === 0) {
+    uni.showModal({
+      title: '暂无歌单',
+      content: '是否创建一个新歌单？',
+      success: (res) => {
+        if (res.confirm) uni.switchTab({ url: '/pages/playlists/playlists' });
+      },
+    });
+    return;
+  }
+
+  uni.showActionSheet({
+    itemList: playlistStore.playlists.map((p) => p.name),
+    success: (res) => {
+      const pl = playlistStore.playlists[res.tapIndex];
+      playlistStore.addTrack(pl.id, {
+        bvid: track.bvid,
+        cid: track.cid,
+        title: track.title,
+        artist: track.artist,
+        cover: track.cover,
+        duration: track.duration,
+      });
+    },
+  });
 }
 </script>
 
@@ -99,16 +137,21 @@ function goPlayer() {
 .mini-controls {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 6rpx;
 }
 
 .mini-btn {
-  width: 68rpx;
-  height: 68rpx;
+  width: 64rpx;
+  height: 64rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+}
+
+.mini-fav-icon {
+  font-size: 36rpx;
+  color: #fb7299;
 }
 
 .mini-play-icon {

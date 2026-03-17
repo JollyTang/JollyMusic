@@ -25,6 +25,13 @@
         <text class="track-artist">{{ playerStore.currentTrack.artist }}</text>
       </view>
 
+      <view class="action-row">
+        <view class="action-btn" @tap="addToPlaylist">
+          <text class="action-icon">♡</text>
+          <text class="action-label">收藏</text>
+        </view>
+      </view>
+
       <view class="progress-section">
         <view class="progress-bar" @tap="onProgressTap">
           <view class="progress-bg">
@@ -95,8 +102,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { usePlayerStore } from '../../stores/player';
+import { usePlaylistStore } from '../../stores/playlist';
 
 const playerStore = usePlayerStore();
+const playlistStore = usePlaylistStore();
 const showQueue = ref(false);
 
 const progressPercent = computed(() => {
@@ -111,6 +120,41 @@ const modeIcon = computed(() => {
 
 function goBack() {
   uni.navigateBack();
+}
+
+async function addToPlaylist() {
+  const track = playerStore.currentTrack;
+  if (!track) return;
+
+  await playlistStore.fetchPlaylists();
+
+  if (playlistStore.playlists.length === 0) {
+    uni.showModal({
+      title: '暂无歌单',
+      content: '是否创建一个新歌单？',
+      success: (res) => {
+        if (res.confirm) {
+          uni.switchTab({ url: '/pages/playlists/playlists' });
+        }
+      },
+    });
+    return;
+  }
+
+  uni.showActionSheet({
+    itemList: playlistStore.playlists.map((p) => p.name),
+    success: (res) => {
+      const pl = playlistStore.playlists[res.tapIndex];
+      playlistStore.addTrack(pl.id, {
+        bvid: track.bvid,
+        cid: track.cid,
+        title: track.title,
+        artist: track.artist,
+        cover: track.cover,
+        duration: track.duration,
+      });
+    },
+  });
 }
 
 function onProgressTap(e: any) {
@@ -210,6 +254,31 @@ function onProgressTap(e: any) {
 .track-artist {
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.action-row {
+  display: flex;
+  justify-content: center;
+  gap: 60rpx;
+  margin-bottom: 36rpx;
+  width: 100%;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.action-icon {
+  font-size: 44rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.action-label {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .progress-section {
