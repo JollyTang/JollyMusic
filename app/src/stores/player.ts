@@ -8,6 +8,96 @@ export interface PlayingTrack extends Track {
   audioUrl?: string;
 }
 
+interface AudioAdapter {
+  play(url: string): void;
+  pause(): void;
+  resume(): void;
+  seek(time: number): void;
+  stop(): void;
+  onTimeUpdate(cb: (currentTime: number, duration: number) => void): void;
+  onEnded(cb: () => void): void;
+  onError(cb: (err: any) => void): void;
+}
+
+function isNativePlatform(): boolean {
+  return typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+}
+
+function createNativeAudioAdapter(): AudioAdapter {
+  const cap = (window as any).Capacitor;
+  const NativeAudio = cap.Plugins.NativeAudio;
+
+  let timeUpdateCb: ((t: number, d: number) => void) | null = null;
+  let endedCb: (() => void) | null = null;
+  let errorCb: ((err: any) => void) | null = null;
+
+  NativeAudio.addListener('timeUpdate', (data: any) => {
+    timeUpdateCb?.(data.currentTime, data.duration);
+  });
+  NativeAudio.addListener('ended', () => {
+    endedCb?.();
+  });
+  NativeAudio.addListener('error', (data: any) => {
+    errorCb?.(data);
+  });
+
+  return {
+    play(url: string) {
+      NativeAudio.play({ url });
+    },
+    pause() {
+      NativeAudio.pause();
+    },
+    resume() {
+      NativeAudio.resume();
+    },
+    seek(time: number) {
+      NativeAudio.seek({ time });
+    },
+    stop() {
+      NativeAudio.stop();
+    },
+    onTimeUpdate(cb) { timeUpdateCb = cb; },
+    onEnded(cb) { endedCb = cb; },
+    onError(cb) { errorCb = cb; },
+  };
+}
+
+function createWebAudioAdapter(): AudioAdapter {
+  const ctx = uni.createInnerAudioContext();
+  let timeUpdateCb: ((t: number, d: number) => void) | null = null;
+  let endedCb: (() => void) | null = null;
+
+  ctx.onTimeUpdate(() => {
+    timeUpdateCb?.(ctx.currentTime || 0, ctx.duration || 0);
+  });
+  ctx.onEnded(() => {
+    endedCb?.();
+  });
+
+  return {
+    play(url: string) {
+      ctx.src = url;
+      ctx.play();
+    },
+    pause() {
+      ctx.pause();
+    },
+    resume() {
+      ctx.play();
+    },
+    seek(time: number) {
+      ctx.seek(time);
+    },
+    stop() {
+      ctx.stop();
+    },
+    onTimeUpdate(cb) { timeUpdateCb = cb; },
+    onEnded(cb) { endedCb = cb; },
+    onError(cb) { ctx.onError(cb); },
+  };
+}
+
 export const usePlayerStore = defineStore('player', () => {
   const currentTrack = ref<PlayingTrack | null>(null);
   const queue = ref<PlayingTrack[]>([]);
@@ -17,24 +107,27 @@ export const usePlayerStore = defineStore('player', () => {
   const totalDuration = ref(0);
   const playMode = ref<PlayMode>('sequence');
 
-  let audioContext: UniApp.InnerAudioContext | null = null;
+  let audio: AudioAdapter | null = null;
 
-  function getAudio() {
-    if (!audioContext) {
-      audioContext = uni.createInnerAudioContext();
-      audioContext.onTimeUpdate(() => {
-        currentTime.value = audioContext!.currentTime || 0;
-        totalDuration.value = audioContext!.duration || 0;
+  function getAudio(): AudioAdapter {
+    if (!audio) {
+      audio = isNativePlatform()
+        ? createNativeAudioAdapter()
+        : createWebAudioAdapter();
+
+      audio.onTimeUpdate((t, d) => {
+        currentTime.value = t;
+        totalDuration.value = d;
       });
-      audioContext.onEnded(() => {
+      audio.onEnded(() => {
         playNext();
       });
-      audioContext.onError((err) => {
+      audio.onError((err) => {
         console.error('Audio error:', err);
         isPlaying.value = false;
       });
     }
-    return audioContext;
+    return audio;
   }
 
   async function play(track: PlayingTrack) {
@@ -42,9 +135,8 @@ export const usePlayerStore = defineStore('player', () => {
       const streamInfo = await api.getAudioStream(track.bvid, track.cid);
       const proxyUrl = api.getAudioProxyUrl(streamInfo.url);
 
-      const audio = getAudio();
-      audio.src = proxyUrl;
-      audio.play();
+      const a = getAudio();
+      a.play(proxyUrl);
 
       currentTrack.value = { ...track, audioUrl: proxyUrl };
       isPlaying.value = true;
@@ -62,19 +154,19 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function togglePlay() {
-    const audio = getAudio();
+    const a = getAudio();
     if (isPlaying.value) {
-      audio.pause();
+      a.pause();
       isPlaying.value = false;
     } else if (currentTrack.value) {
-      audio.play();
+      a.resume();
       isPlaying.value = true;
     }
   }
 
   function seekTo(time: number) {
-    const audio = getAudio();
-    audio.seek(time);
+    const a = getAudio();
+    a.seek(time);
     currentTime.value = time;
   }
 

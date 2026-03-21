@@ -130,11 +130,31 @@
 - [ ] QQ音乐接入
 - [ ] 抖音音频接入
 
+## v2.1.0 - Android 原生增强 (进行中)
+
+### 原生音频播放
+- [ ] Capacitor 原生音频插件 (NativeAudioPlugin.kt，封装 Android MediaPlayer)
+- [ ] 音频焦点策略：忽略 AUDIOFOCUS_LOSS，允许与其他 App 音频混合播放
+- [ ] Android Foreground Service 前台服务 (后台播放不被系统回收)
+- [ ] 通知栏常驻播放通知
+- [ ] player.ts 平台检测：Capacitor 走原生插件，Web 走 uni.createInnerAudioContext()
+
+### OTA 热更新
+- [ ] 集成 @capgo/capacitor-updater 插件
+- [ ] App 启动时检查 GitHub Releases 最新 H5 资源版本
+- [ ] 后台静默下载更新包并自动应用
+- [ ] deploy.sh 构建后自动发布 H5 zip 到 GitHub Releases
+- [ ] GitHub Actions 构建后自动发布 H5 资源包
+
+### Android APK 构建 (已完成)
+- [x] 集成 Capacitor + 生成 Android 工程
+- [x] GitHub Actions 自动构建 APK
+- [x] Capacitor 环境 API 地址修复
+
 ## 未来规划
 
 - [ ] 用户账号系统 (跨设备歌单同步)
 - [ ] 关键词搜索B站视频 (不需要手动复制BV号)
 - [ ] 歌词显示
-- [ ] Android APK 打包
 - [ ] iOS App 打包
 - [ ] 国内服务器部署 (解决翻墙问题)

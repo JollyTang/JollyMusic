@@ -19,7 +19,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: app/package-lock.json
 
-      - name: Setup JDK 17
+      - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -36,6 +36,11 @@ jobs:
         working-directory: app
         run: npm run build:h5
 
+      - name: Package H5 bundle for OTA
+        run: |
+          cd app/dist/build/h5
+          zip -r -q ../../../../h5-bundle.zip .
+
       - name: Sync Capacitor
         working-directory: app
         run: npx cap sync android
@@ -44,15 +49,35 @@ jobs:
         working-directory: app/android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Rename APK
+        run: cp app/android/app/build/outputs/apk/debug/app-debug.apk ListenMusic.apk
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ListenMusic-debug
-          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          path: ListenMusic.apk
           retention-days: 30
 
-      - name: Create Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./app/package.json').version")
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=web-${VERSION}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Create OTA Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/android/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "v${{ steps.version.outputs.version }} (build ${{ github.run_number }})"
+          body: |
+            自动构建 #${{ github.run_number }}
+
+            **APK**: 首次安装或原生更新时下载 `ListenMusic.apk`
+            **OTA**: 已安装用户无需操作，App 启动时自动更新前端
+          files: |
+            ListenMusic.apk
+            h5-bundle.zip
+          make_latest: true
