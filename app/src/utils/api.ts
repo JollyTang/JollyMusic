@@ -1,4 +1,5 @@
-const isDev = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+const isDev = !isNative && typeof window !== 'undefined' && window.location?.hostname === 'localhost';
 const BASE_URL = isDev ? '/api' : 'https://tang2000-jollymusic.hf.space/api';
 
 interface ApiResponse<T = any> {
