@@ -17,6 +17,12 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import java.io.IOException;
 
 @CapacitorPlugin(name = "NativeAudio")
@@ -37,6 +43,20 @@ public class NativeAudioPlugin extends Plugin {
         handler = new Handler(Looper.getMainLooper());
         audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         registerMediaCallbacks();
+        requestNotificationPermission();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    getActivity(),
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    1001
+                );
+            }
+        }
     }
 
     private void registerMediaCallbacks() {

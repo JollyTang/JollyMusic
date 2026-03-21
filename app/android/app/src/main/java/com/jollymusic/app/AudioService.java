@@ -95,6 +95,10 @@ public class AudioService extends Service {
 
     private void initMediaSession() {
         mediaSession = new MediaSessionCompat(this, "ListenMusic");
+        mediaSession.setFlags(
+            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
+            | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+        );
         mediaSession.setCallback(new MediaSessionCompat.Callback() {
             @Override
             public void onPlay() {
@@ -169,6 +173,7 @@ public class AudioService extends Service {
             .setOngoing(currentIsPlaying)
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .addAction(android.R.drawable.ic_media_previous, "上一曲", buildMediaAction("prev"))
             .addAction(
                 currentIsPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
