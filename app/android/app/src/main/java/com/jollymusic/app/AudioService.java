@@ -6,14 +6,25 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AudioService extends Service {
 
@@ -29,6 +40,9 @@ public class AudioService extends Service {
     private boolean currentIsPlaying = false;
     private long currentDuration = 0;
     private long currentPosition = 0;
+    private Bitmap currentAlbumArt = null;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private static MediaControlCallback controlCallback;
 
@@ -59,10 +73,14 @@ public class AudioService extends Service {
                     currentTitle = intent.getStringExtra("title");
                     currentArtist = intent.getStringExtra("artist");
                     currentDuration = intent.getLongExtra("duration", 0);
+                    String coverUrl = intent.getStringExtra("coverUrl");
                     if (currentTitle == null) currentTitle = "ListenMusic";
                     if (currentArtist == null) currentArtist = "";
                     updateMediaSessionMetadata();
                     updateNotification();
+                    if (coverUrl != null && !coverUrl.isEmpty()) {
+                        loadAlbumArt(coverUrl);
+                    }
                     break;
                 case ACTION_UPDATE_STATE:
                     currentIsPlaying = intent.getBooleanExtra("isPlaying", false);
@@ -131,11 +149,50 @@ public class AudioService extends Service {
 
     private void updateMediaSessionMetadata() {
         if (mediaSession == null) return;
-        mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+        MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDuration)
-            .build());
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDuration);
+        if (currentAlbumArt != null) {
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentAlbumArt);
+            builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentAlbumArt);
+        }
+        mediaSession.setMetadata(builder.build());
+    }
+
+    private void loadAlbumArt(String imageUrl) {
+        executor.execute(() -> {
+            try {
+                URL url = new URL(imageUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.setRequestProperty("Referer", "https://www.bilibili.com");
+                InputStream in = conn.getInputStream();
+                Bitmap bitmap = BitmapFactory.decodeStream(in);
+                in.close();
+                conn.disconnect();
+
+                if (bitmap != null) {
+                    int maxSize = 512;
+                    if (bitmap.getWidth() > maxSize || bitmap.getHeight() > maxSize) {
+                        float scale = Math.min((float) maxSize / bitmap.getWidth(), (float) maxSize / bitmap.getHeight());
+                        bitmap = Bitmap.createScaledBitmap(bitmap,
+                            (int) (bitmap.getWidth() * scale),
+                            (int) (bitmap.getHeight() * scale), true);
+                    }
+
+                    final Bitmap art = bitmap;
+                    mainHandler.post(() -> {
+                        currentAlbumArt = art;
+                        updateMediaSessionMetadata();
+                        updateNotification();
+                    });
+                }
+            } catch (Exception e) {
+                Log.w("AudioService", "Failed to load album art: " + e.getMessage());
+            }
+        });
     }
 
     private void updatePlaybackState() {
@@ -174,6 +231,7 @@ public class AudioService extends Service {
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setLargeIcon(currentAlbumArt)
             .addAction(android.R.drawable.ic_media_previous, "上一曲", buildMediaAction("prev"))
             .addAction(
                 currentIsPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,

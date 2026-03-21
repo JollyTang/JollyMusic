@@ -13,7 +13,7 @@ function isNativePlatform(): boolean {
 }
 
 interface AudioAdapter {
-  play(url: string, meta?: { title?: string; artist?: string }): void;
+  play(url: string, meta?: { title?: string; artist?: string; cover?: string }): void;
   pause(): void;
   resume(): void;
   seek(time: number): void;
@@ -47,8 +47,8 @@ function createNativeAudioAdapter(): AudioAdapter {
   });
 
   return {
-    play(url: string, meta?: { title?: string; artist?: string }) {
-      NativeAudio.play({ url, title: meta?.title || '', artist: meta?.artist || '' });
+    play(url: string, meta?: { title?: string; artist?: string; cover?: string }) {
+      NativeAudio.play({ url, title: meta?.title || '', artist: meta?.artist || '', cover: meta?.cover || '' });
     },
     pause() {
       NativeAudio.pause();
@@ -82,7 +82,7 @@ function createWebAudioAdapter(): AudioAdapter {
   });
 
   return {
-    play(url: string, _meta?: { title?: string; artist?: string }) {
+    play(url: string, _meta?: { title?: string; artist?: string; cover?: string }) {
       ctx.src = url;
       ctx.play();
     },
@@ -159,7 +159,8 @@ export const usePlayerStore = defineStore('player', () => {
       const proxyUrl = api.getAudioProxyUrl(streamInfo.url);
 
       const a = getAudio();
-      a.play(proxyUrl, { title: track.title, artist: track.artist });
+      const coverUrl = api.proxyImage(track.cover);
+      a.play(proxyUrl, { title: track.title, artist: track.artist, cover: coverUrl });
 
       currentTrack.value = { ...track, audioUrl: proxyUrl };
       isPlaying.value = true;

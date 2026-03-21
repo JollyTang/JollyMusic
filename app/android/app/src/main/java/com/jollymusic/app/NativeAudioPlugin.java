@@ -147,6 +147,7 @@ public class NativeAudioPlugin extends Plugin {
 
         String title = call.getString("title", "");
         String artist = call.getString("artist", "");
+        String cover = call.getString("cover", "");
         currentTitle = title;
         currentArtist = artist;
 
@@ -171,7 +172,7 @@ public class NativeAudioPlugin extends Plugin {
                     startForegroundService();
                     startTimeUpdates();
 
-                    updateServiceMeta(currentTitle, currentArtist, mp.getDuration());
+                    updateServiceMeta(currentTitle, currentArtist, mp.getDuration(), cover);
                     updateServiceState(true);
 
                     JSObject ret = new JSObject();
@@ -309,13 +310,14 @@ public class NativeAudioPlugin extends Plugin {
         audioManager.requestAudioFocus(focusRequest);
     }
 
-    private void updateServiceMeta(String title, String artist, long durationMs) {
+    private void updateServiceMeta(String title, String artist, long durationMs, String coverUrl) {
         Context ctx = getContext();
         Intent intent = new Intent(ctx, AudioService.class);
         intent.setAction(AudioService.ACTION_UPDATE_META);
         intent.putExtra("title", title);
         intent.putExtra("artist", artist);
         intent.putExtra("duration", durationMs);
+        intent.putExtra("coverUrl", coverUrl);
         ctx.startService(intent);
     }
 
