@@ -1,7 +1,15 @@
 <template>
   <view class="card" @tap="$emit('tap')">
-    <view class="card-icon">
-      <text class="icon-text">♫</text>
+    <view class="card-cover">
+      <image
+        v-if="coverUrl"
+        class="cover-img"
+        :src="coverUrl"
+        mode="aspectFill"
+      />
+      <view v-else class="cover-placeholder">
+        <text class="icon-text">♫</text>
+      </view>
     </view>
     <view class="card-info">
       <text class="card-name">{{ playlist.name }}</text>
@@ -14,10 +22,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { Playlist } from '../../utils/api';
+import { api } from '../../utils/api';
 
-defineProps<{ playlist: Playlist }>();
+const props = defineProps<{ playlist: Playlist }>();
 defineEmits<{ tap: []; delete: [] }>();
+
+const coverUrl = computed(() => {
+  const raw = props.playlist.cover || props.playlist.tracks?.[0]?.cover || '';
+  return raw ? api.proxyImage(raw) : '';
+});
 </script>
 
 <style scoped>
@@ -32,15 +47,27 @@ defineEmits<{ tap: []; delete: [] }>();
   cursor: pointer;
 }
 
-.card-icon {
+.card-cover {
   width: 96rpx;
   height: 96rpx;
-  background: linear-gradient(135deg, #fb7299, #f04e7d);
   border-radius: 16rpx;
+  overflow: hidden;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #fb7299, #f04e7d);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 20rpx;
   box-shadow: 0 4rpx 12rpx rgba(251, 114, 153, 0.25);
 }
 

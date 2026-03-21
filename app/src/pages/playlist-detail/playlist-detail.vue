@@ -13,6 +13,11 @@
       </view>
 
       <view v-else class="track-list">
+        <view class="detail-header">
+          <text class="detail-title" @tap="renamePlaylist">{{ currentPlaylist?.name || '歌单' }}</text>
+          <text class="rename-hint" @tap="renamePlaylist">✎</text>
+        </view>
+
         <view class="list-header">
           <view class="play-all" @tap="playAll">
             <view class="play-all-btn">
@@ -20,20 +25,44 @@
             </view>
             <text class="play-all-text">播放全部 ({{ playlistStore.currentTracks.length }})</text>
           </view>
-          <view class="share-btn" @tap="sharePlaylist">
-            <text class="share-btn-text">分享</text>
+          <view class="header-actions">
+            <view class="action-btn-sm" @tap="toggleReorder">
+              <text class="action-btn-text">{{ isReordering ? '完成' : '排序' }}</text>
+            </view>
+            <view class="action-btn-sm" @tap="sharePlaylist">
+              <text class="action-btn-text share-color">分享</text>
+            </view>
           </view>
         </view>
 
-        <TrackItem
-          v-for="track in playlistStore.currentTracks"
-          :key="track.id"
-          :track="track"
-          :is-active="isTrackPlaying(track)"
-          :show-delete="true"
-          @play="playTrack(track)"
-          @delete="confirmRemove(track)"
-        />
+        <view v-if="isReordering" class="reorder-list">
+          <view
+            v-for="(track, index) in playlistStore.currentTracks"
+            :key="track.id"
+            class="reorder-item"
+          >
+            <view class="reorder-move">
+              <text class="move-btn" @tap="moveTrackUp(index)">↑</text>
+              <text class="move-btn" @tap="moveTrackDown(index)">↓</text>
+            </view>
+            <view class="reorder-info">
+              <text class="reorder-title">{{ track.title }}</text>
+              <text class="reorder-artist">{{ track.artist }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view v-else>
+          <TrackItem
+            v-for="track in playlistStore.currentTracks"
+            :key="track.id"
+            :track="track"
+            :is-active="isTrackPlaying(track)"
+            :show-delete="true"
+            @play="playTrack(track)"
+            @delete="confirmRemove(track)"
+          />
+        </view>
       </view>
     </view>
 
@@ -74,6 +103,8 @@ const playerStore = usePlayerStore();
 const playlistId = ref('');
 const showShareModal = ref(false);
 const shareCode = ref('');
+const isReordering = ref(false);
+const currentPlaylist = ref<any>(null);
 
 onMounted(() => {
   const pages = getCurrentPages();
@@ -81,8 +112,41 @@ onMounted(() => {
   playlistId.value = page.$page?.options?.id || page.options?.id || '';
   if (playlistId.value) {
     playlistStore.fetchTracks(playlistId.value);
+    currentPlaylist.value = playlistStore.getPlaylistById(playlistId.value);
   }
 });
+
+function renamePlaylist() {
+  const pl = playlistStore.getPlaylistById(playlistId.value);
+  if (!pl) return;
+  uni.showModal({
+    title: '重命名歌单',
+    content: pl.name,
+    editable: true,
+    placeholderText: '输入新名称',
+    success: (res) => {
+      if (res.confirm && res.content?.trim()) {
+        playlistStore.renamePlaylist(playlistId.value, res.content.trim());
+        currentPlaylist.value = playlistStore.getPlaylistById(playlistId.value);
+        uni.showToast({ title: '已重命名', icon: 'success' });
+      }
+    },
+  });
+}
+
+function toggleReorder() {
+  isReordering.value = !isReordering.value;
+}
+
+function moveTrackUp(index: number) {
+  if (index <= 0) return;
+  playlistStore.reorderTrack(playlistId.value, index, index - 1);
+}
+
+function moveTrackDown(index: number) {
+  if (index >= playlistStore.currentTracks.length - 1) return;
+  playlistStore.reorderTrack(playlistId.value, index, index + 1);
+}
 
 function playTrack(track: Track) {
   const idx = playlistStore.currentTracks.findIndex(
@@ -210,18 +274,102 @@ function copyShareCode() {
 .play-all-icon { font-size: 22rpx; color: #ffffff; margin-left: 4rpx; }
 .play-all-text { font-size: 30rpx; color: #1d1d1f; font-weight: 500; }
 
-.share-btn {
-  padding: 12rpx 28rpx;
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.detail-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1d1d1f;
+  cursor: pointer;
+}
+
+.rename-hint {
+  font-size: 28rpx;
+  color: #c7c7cc;
+  cursor: pointer;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12rpx;
+}
+
+.action-btn-sm {
+  padding: 10rpx 24rpx;
   background-color: #ffffff;
   border-radius: 30rpx;
   cursor: pointer;
   border: 2rpx solid #e5e5ea;
 }
 
-.share-btn-text {
+.action-btn-text {
   font-size: 26rpx;
-  color: #fb7299;
+  color: #1d1d1f;
   font-weight: 500;
+}
+
+.share-color {
+  color: #fb7299;
+}
+
+.reorder-list {
+  margin-top: 12rpx;
+}
+
+.reorder-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.reorder-move {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  margin-right: 20rpx;
+}
+
+.move-btn {
+  width: 56rpx;
+  height: 48rpx;
+  background-color: #f2f2f7;
+  border-radius: 8rpx;
+  text-align: center;
+  line-height: 48rpx;
+  font-size: 28rpx;
+  color: #1d1d1f;
+  cursor: pointer;
+}
+
+.move-btn:active {
+  background-color: #e5e5ea;
+}
+
+.reorder-info {
+  flex: 1;
+  overflow: hidden;
+}
+
+.reorder-title {
+  font-size: 28rpx;
+  color: #1d1d1f;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reorder-artist {
+  font-size: 22rpx;
+  color: #8e8e93;
 }
 
 /* Modal */

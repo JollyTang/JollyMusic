@@ -48,6 +48,14 @@ export const usePlaylistStore = defineStore('playlist', () => {
     uni.showToast({ title: '创建成功', icon: 'success' });
   }
 
+  function renamePlaylist(id: string, newName: string) {
+    const pl = playlists.value.find((p) => p.id === id);
+    if (!pl) return;
+    pl.name = newName;
+    pl.updated_at = Date.now();
+    persist();
+  }
+
   function deletePlaylist(id: string) {
     playlists.value = playlists.value.filter((p) => p.id !== id);
     persist();
@@ -76,6 +84,9 @@ export const usePlaylistStore = defineStore('playlist', () => {
     }
 
     pl.tracks.push({ ...track, id: genId() });
+    if (!pl.cover && track.cover) {
+      pl.cover = track.cover;
+    }
     pl.updated_at = Date.now();
     persist();
     uni.showToast({ title: '已添加', icon: 'success' });
@@ -86,10 +97,23 @@ export const usePlaylistStore = defineStore('playlist', () => {
     if (!pl) return;
 
     pl.tracks = pl.tracks.filter((t) => t.id !== trackId);
+    pl.cover = pl.tracks[0]?.cover || '';
     pl.updated_at = Date.now();
     persist();
     currentTracks.value = [...pl.tracks];
     uni.showToast({ title: '已移除', icon: 'success' });
+  }
+
+  function reorderTrack(playlistId: string, fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    const pl = playlists.value.find((p) => p.id === playlistId);
+    if (!pl) return;
+    const item = pl.tracks.splice(fromIndex, 1)[0];
+    pl.tracks.splice(toIndex, 0, item);
+    pl.cover = pl.tracks[0]?.cover || '';
+    pl.updated_at = Date.now();
+    persist();
+    currentTracks.value = [...pl.tracks];
   }
 
   function getPlaylistById(id: string): Playlist | undefined {
@@ -111,10 +135,12 @@ export const usePlaylistStore = defineStore('playlist', () => {
     loading,
     fetchPlaylists,
     createPlaylist,
+    renamePlaylist,
     deletePlaylist,
     fetchTracks,
     addTrack,
     removeTrack,
+    reorderTrack,
     getPlaylistById,
     importPlaylist,
   };
