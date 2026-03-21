@@ -23,58 +23,58 @@
     </view>
 
     <view v-else-if="videoInfo" class="result-card">
-      <view class="card-cover-wrap">
-        <image class="card-cover" :src="videoInfo.cover" mode="aspectFill" />
-        <view class="card-duration-badge">
-          <text class="badge-text">{{ formatDuration(videoInfo.duration) }}</text>
+      <view class="card-horizontal">
+        <view class="card-cover-wrap">
+          <image class="card-cover" :src="api.proxyImage(videoInfo.cover)" mode="aspectFit" />
+          <view class="card-duration-badge">
+            <text class="badge-text">{{ formatDuration(videoInfo.duration) }}</text>
+          </view>
+        </view>
+        <view class="card-info">
+          <text class="card-title">{{ videoInfo.title }}</text>
+          <view class="card-meta">
+            <image class="card-avatar" :src="api.proxyImage(videoInfo.owner.face)" mode="aspectFill" />
+            <text class="card-artist">{{ videoInfo.owner.name }}</text>
+          </view>
+          <view v-if="videoInfo.pages.length === 1" class="card-actions">
+            <view class="btn-play" @tap="playTrack(videoInfo.pages[0])">
+              <text class="btn-play-icon">▶</text>
+              <text class="btn-play-text">播放</text>
+            </view>
+            <view class="btn-add" @tap="showAddToPlaylist(videoInfo.pages[0])">
+              <text class="btn-add-text">+ 歌单</text>
+            </view>
+          </view>
         </view>
       </view>
 
-      <view class="card-body">
-        <text class="card-title">{{ videoInfo.title }}</text>
-        <view class="card-meta">
-          <image class="card-avatar" :src="videoInfo.owner.face" mode="aspectFill" />
-          <text class="card-artist">{{ videoInfo.owner.name }}</text>
-        </view>
-
-        <view v-if="videoInfo.pages.length === 1" class="card-actions">
-          <view class="btn-play" @tap="playTrack(videoInfo.pages[0])">
-            <text class="btn-play-icon">▶</text>
-            <text class="btn-play-text">播放音频</text>
-          </view>
-          <view class="btn-add" @tap="showAddToPlaylist(videoInfo.pages[0])">
-            <text class="btn-add-text">+ 歌单</text>
-          </view>
-        </view>
-
-        <view v-else class="parts-section">
-          <text class="parts-label">共 {{ videoInfo.pages.length }} 个分P，选择要播放的：</text>
-          <scroll-view scroll-y class="parts-list">
-            <view
-              v-for="p in videoInfo.pages"
-              :key="p.cid"
-              class="part-row"
-            >
-              <view class="part-left" @tap="playTrack(p)">
-                <view class="part-index">
-                  <text class="part-index-text">{{ p.page }}</text>
-                </view>
-                <view class="part-text">
-                  <text class="part-name">{{ p.part || videoInfo.title }}</text>
-                  <text class="part-dur">{{ formatDuration(p.duration) }}</text>
-                </view>
+      <view v-if="videoInfo.pages.length > 1" class="parts-section">
+        <text class="parts-label">共 {{ videoInfo.pages.length }} 个分P，选择要播放的：</text>
+        <scroll-view scroll-y class="parts-list">
+          <view
+            v-for="p in videoInfo.pages"
+            :key="p.cid"
+            class="part-row"
+          >
+            <view class="part-left" @tap="playTrack(p)">
+              <view class="part-index">
+                <text class="part-index-text">{{ p.page }}</text>
               </view>
-              <view class="part-right">
-                <view class="part-play-btn" @tap="playTrack(p)">
-                  <text class="part-play-icon">▶</text>
-                </view>
-                <view class="part-add-btn" @tap="showAddToPlaylist(p)">
-                  <text class="part-add-icon">+</text>
-                </view>
+              <view class="part-text">
+                <text class="part-name">{{ p.part || videoInfo.title }}</text>
+                <text class="part-dur">{{ formatDuration(p.duration) }}</text>
               </view>
             </view>
-          </scroll-view>
-        </view>
+            <view class="part-right">
+              <view class="part-play-btn" @tap="playTrack(p)">
+                <text class="part-play-icon">▶</text>
+              </view>
+              <view class="part-add-btn" @tap="showAddToPlaylist(p)">
+                <text class="part-add-icon">+</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
       </view>
     </view>
 
@@ -261,6 +261,7 @@ function formatDuration(seconds: number): string {
 
 .clear-btn {
   padding: 8rpx;
+  cursor: pointer;
 }
 
 .clear-icon {
@@ -275,6 +276,7 @@ function formatDuration(seconds: number): string {
   padding: 16rpx 32rpx;
   border-radius: 20rpx;
   font-weight: 500;
+  cursor: pointer;
 }
 
 /* Loading */
@@ -311,65 +313,84 @@ function formatDuration(seconds: number): string {
   border-radius: 24rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 20rpx rgba(0, 0, 0, 0.06);
+  padding: 24rpx;
+}
+
+.card-horizontal {
+  display: flex;
+  gap: 24rpx;
 }
 
 .card-cover-wrap {
   position: relative;
+  flex-shrink: 0;
+  width: 260rpx;
+  height: 180rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background-color: #f2f2f7;
 }
 
 .card-cover {
   width: 100%;
-  height: 380rpx;
+  height: 100%;
 }
 
 .card-duration-badge {
   position: absolute;
-  right: 16rpx;
-  bottom: 16rpx;
+  right: 8rpx;
+  bottom: 8rpx;
   background-color: rgba(0, 0, 0, 0.65);
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
 }
 
 .badge-text {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #ffffff;
 }
 
-.card-body {
-  padding: 24rpx;
+.card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
 }
 
 .card-title {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #1d1d1f;
-  display: block;
-  margin-bottom: 16rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   line-height: 1.4;
+  margin-bottom: 12rpx;
 }
 
 .card-meta {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  margin-bottom: 24rpx;
+  gap: 10rpx;
+  margin-bottom: 16rpx;
 }
 
 .card-avatar {
-  width: 44rpx;
-  height: 44rpx;
+  width: 36rpx;
+  height: 36rpx;
   border-radius: 50%;
 }
 
 .card-artist {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: #8e8e93;
 }
 
 .card-actions {
   display: flex;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 
 .btn-play {
@@ -377,19 +398,20 @@ function formatDuration(seconds: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 8rpx;
   background: linear-gradient(135deg, #fb7299, #f04e7d);
   color: #ffffff;
-  padding: 22rpx 0;
-  border-radius: 16rpx;
+  padding: 14rpx 0;
+  border-radius: 12rpx;
+  cursor: pointer;
 }
 
 .btn-play-icon {
-  font-size: 24rpx;
+  font-size: 20rpx;
 }
 
 .btn-play-text {
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 500;
 }
 
@@ -398,19 +420,22 @@ function formatDuration(seconds: number): string {
   align-items: center;
   justify-content: center;
   background-color: #f2f2f7;
-  padding: 22rpx 32rpx;
-  border-radius: 16rpx;
+  padding: 14rpx 24rpx;
+  border-radius: 12rpx;
+  cursor: pointer;
 }
 
 .btn-add-text {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #8e8e93;
   font-weight: 500;
 }
 
 /* Parts */
 .parts-section {
-  margin-top: 8rpx;
+  margin-top: 24rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f2f2f7;
 }
 
 .parts-label {
@@ -490,6 +515,11 @@ function formatDuration(seconds: number): string {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  cursor: pointer;
+}
+
+.part-row {
+  cursor: pointer;
 }
 
 .part-play-btn {
@@ -552,6 +582,7 @@ function formatDuration(seconds: number): string {
   border-radius: 30rpx;
   gap: 12rpx;
   box-shadow: 0 1rpx 6rpx rgba(0, 0, 0, 0.04);
+  cursor: pointer;
 }
 
 .tag-text {

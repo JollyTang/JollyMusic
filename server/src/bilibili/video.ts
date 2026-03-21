@@ -41,22 +41,18 @@ export async function getVideoInfo(bvid: string): Promise<VideoInfo> {
   }
 
   const d = json.data;
-  const proxyImg = (url: string) => {
-    if (!url) return '';
-    const src = url.replace(/^http:\/\//, 'https://');
-    return `/api/audio/image?url=${encodeURIComponent(src)}`;
-  };
+  const toHttps = (url: string) => url?.replace(/^http:\/\//, 'https://') || '';
   return {
     bvid: d.bvid,
     aid: d.aid,
     title: d.title,
     desc: d.desc,
-    cover: proxyImg(d.pic),
+    cover: toHttps(d.pic),
     duration: d.duration,
     owner: {
       mid: d.owner.mid,
       name: d.owner.name,
-      face: proxyImg(d.owner.face),
+      face: toHttps(d.owner.face),
     },
     pages: d.pages.map((p: any) => ({
       cid: p.cid,

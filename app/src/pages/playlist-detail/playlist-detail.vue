@@ -56,7 +56,7 @@
       </view>
     </view>
 
-    <MiniPlayer />
+    <MiniPlayer :no-tab-bar="true" />
   </view>
 </template>
 
@@ -85,7 +85,10 @@ onMounted(() => {
 });
 
 function playTrack(track: Track) {
-  playerStore.play(track);
+  const idx = playlistStore.currentTracks.findIndex(
+    (t) => t.bvid === track.bvid && t.cid === track.cid
+  );
+  playerStore.setQueue(playlistStore.currentTracks, idx >= 0 ? idx : 0);
 }
 
 function playAll() {
@@ -190,6 +193,10 @@ function copyShareCode() {
   padding: 16rpx 0;
 }
 
+.play-all {
+  cursor: pointer;
+}
+
 .play-all-btn {
   width: 52rpx;
   height: 52rpx;
@@ -207,6 +214,7 @@ function copyShareCode() {
   padding: 12rpx 28rpx;
   background-color: #ffffff;
   border-radius: 30rpx;
+  cursor: pointer;
   border: 2rpx solid #e5e5ea;
 }
 

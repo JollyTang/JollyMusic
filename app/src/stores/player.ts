@@ -115,7 +115,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function setQueue(tracks: PlayingTrack[], startIndex = 0) {
-    queue.value = tracks;
+    queue.value = [...tracks];
     currentIndex.value = startIndex;
     if (tracks.length > 0) {
       play(tracks[startIndex]);
@@ -129,6 +129,58 @@ export const usePlayerStore = defineStore('player', () => {
     if (!exists) {
       queue.value.push(track);
     }
+  }
+
+  function playNext_insert(track: PlayingTrack) {
+    const exists = queue.value.findIndex(
+      (t) => t.bvid === track.bvid && t.cid === track.cid
+    );
+    if (exists >= 0) {
+      queue.value.splice(exists, 1);
+      if (exists <= currentIndex.value) currentIndex.value--;
+    }
+    const insertAt = currentIndex.value + 1;
+    queue.value.splice(insertAt, 0, track);
+  }
+
+  function removeFromQueue(index: number) {
+    if (index < 0 || index >= queue.value.length) return;
+
+    const wasPlaying = index === currentIndex.value;
+    queue.value.splice(index, 1);
+
+    if (queue.value.length === 0) {
+      currentIndex.value = -1;
+      return;
+    }
+
+    if (index < currentIndex.value) {
+      currentIndex.value--;
+    } else if (wasPlaying) {
+      currentIndex.value = Math.min(currentIndex.value, queue.value.length - 1);
+    }
+  }
+
+  function moveInQueue(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    if (fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex >= queue.value.length || toIndex >= queue.value.length) return;
+
+    const item = queue.value.splice(fromIndex, 1)[0];
+    queue.value.splice(toIndex, 0, item);
+
+    if (currentIndex.value === fromIndex) {
+      currentIndex.value = toIndex;
+    } else if (fromIndex < currentIndex.value && toIndex >= currentIndex.value) {
+      currentIndex.value--;
+    } else if (fromIndex > currentIndex.value && toIndex <= currentIndex.value) {
+      currentIndex.value++;
+    }
+  }
+
+  function clearQueue() {
+    queue.value = [];
+    currentIndex.value = -1;
   }
 
   function togglePlayMode() {
@@ -168,6 +220,10 @@ export const usePlayerStore = defineStore('player', () => {
     playPrev,
     setQueue,
     addToQueue,
+    playNext_insert,
+    removeFromQueue,
+    moveInQueue,
+    clearQueue,
     togglePlayMode,
     formatTime,
   };

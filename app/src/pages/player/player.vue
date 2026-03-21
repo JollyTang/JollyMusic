@@ -15,7 +15,7 @@
         <image
           class="cover"
           :class="{ spinning: playerStore.isPlaying }"
-          :src="playerStore.currentTrack.cover"
+          :src="api.proxyImage(playerStore.currentTrack.cover)"
           mode="aspectFill"
         />
       </view>
@@ -27,14 +27,17 @@
 
       <view class="action-row">
         <view class="action-btn" @tap="addToPlaylist">
-          <text class="action-icon">♡</text>
+          <SvgIcon name="heart" :size="52" color="rgba(255,255,255,0.7)" :clickable="true" />
           <text class="action-label">收藏</text>
         </view>
       </view>
 
       <view class="progress-section">
         <view class="progress-bar" @tap="onProgressTap">
-          <view class="progress-bg">
+          <view v-if="playerHoverPercent >= 0" class="player-time-tooltip" :style="{ left: playerHoverPercent + '%' }">
+            <text class="player-tooltip-text">{{ playerHoverTimeText }}</text>
+          </view>
+          <view class="progress-bg" id="playerProgressBar">
             <view class="progress-fill" :style="{ width: progressPercent + '%' }" />
             <view class="progress-dot" :style="{ left: progressPercent + '%' }" />
           </view>
@@ -47,19 +50,19 @@
 
       <view class="controls">
         <view class="control-btn" @tap="playerStore.togglePlayMode()">
-          <text class="mode-icon">{{ modeIcon }}</text>
+          <SvgIcon :name="playerStore.playMode" :size="52" color="#ffffff" :clickable="true" />
         </view>
         <view class="control-btn" @tap="playerStore.playPrev()">
-          <text class="nav-icon">⏮</text>
+          <SvgIcon name="prev" :size="56" color="#ffffff" :clickable="true" />
         </view>
         <view class="play-pause-btn" @tap="playerStore.togglePlay()">
-          <text class="play-icon">{{ playerStore.isPlaying ? '⏸' : '▶' }}</text>
+          <SvgIcon :name="playerStore.isPlaying ? 'pause' : 'play'" :size="60" color="#ffffff" />
         </view>
         <view class="control-btn" @tap="playerStore.playNext()">
-          <text class="nav-icon">⏭</text>
+          <SvgIcon name="next" :size="56" color="#ffffff" :clickable="true" />
         </view>
-        <view class="control-btn" @tap="showQueue = !showQueue">
-          <text class="list-icon">☰</text>
+        <view class="control-btn" @tap="showQueue = true">
+          <SvgIcon name="queue" :size="52" color="rgba(255,255,255,0.6)" :clickable="true" />
         </view>
       </view>
 
@@ -72,55 +75,61 @@
       <text class="empty-hint">去搜索BV号开始播放吧</text>
     </view>
 
-    <view v-if="showQueue" class="queue-overlay" @tap="showQueue = false">
-      <view class="queue-panel" @tap.stop>
-        <view class="queue-handle" />
-        <view class="queue-header">
-          <text class="queue-title">播放队列 ({{ playerStore.queue.length }})</text>
-          <text class="queue-close" @tap="showQueue = false">关闭</text>
-        </view>
-        <scroll-view scroll-y class="queue-list">
-          <view
-            v-for="(track, idx) in playerStore.queue"
-            :key="`${track.bvid}-${track.cid}`"
-            class="queue-item"
-            :class="{ active: idx === playerStore.currentIndex }"
-            @tap="playerStore.play(track)"
-          >
-            <text class="queue-idx">{{ idx + 1 }}</text>
-            <view class="queue-info">
-              <text class="queue-name">{{ track.title }}</text>
-              <text class="queue-artist">{{ track.artist }}</text>
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-    </view>
+    <QueuePanel :visible="showQueue" @close="showQueue = false" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { usePlayerStore } from '../../stores/player';
 import { usePlaylistStore } from '../../stores/playlist';
+import { api } from '../../utils/api';
+import QueuePanel from '../../components/queue-panel/queue-panel.vue';
+import SvgIcon from '../../components/icon/SvgIcon.vue';
 
 const playerStore = usePlayerStore();
 const playlistStore = usePlaylistStore();
 const showQueue = ref(false);
+const playerHoverPercent = ref(-1);
+
+const playerHoverTimeText = computed(() => {
+  if (playerHoverPercent.value < 0 || !playerStore.totalDuration) return '';
+  const seconds = (playerHoverPercent.value / 100) * playerStore.totalDuration;
+  return playerStore.formatTime(seconds);
+});
+
+function handlePlayerMouseMove(e: MouseEvent) {
+  if (!playerStore.totalDuration) return;
+  const el = document.getElementById('playerProgressBar');
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const pad = 10;
+  if (e.clientY < rect.top - pad || e.clientY > rect.bottom + pad ||
+      e.clientX < rect.left || e.clientX > rect.right) {
+    playerHoverPercent.value = -1;
+    return;
+  }
+  playerHoverPercent.value = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+}
+
+onMounted(() => {
+  document.addEventListener('mousemove', handlePlayerMouseMove);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', handlePlayerMouseMove);
+});
 
 const progressPercent = computed(() => {
   if (!playerStore.totalDuration) return 0;
   return (playerStore.currentTime / playerStore.totalDuration) * 100;
 });
 
-const modeIcon = computed(() => {
-  const icons: Record<string, string> = { sequence: '🔁', random: '🔀', loop: '🔂' };
-  return icons[playerStore.playMode] || '🔁';
-});
 
 function goBack() {
   uni.navigateBack();
 }
+
 
 async function addToPlaylist() {
   const track = playerStore.currentTrack;
@@ -269,12 +278,9 @@ function onProgressTap(e: any) {
   flex-direction: column;
   align-items: center;
   gap: 6rpx;
+  cursor: pointer;
 }
 
-.action-icon {
-  font-size: 44rpx;
-  color: rgba(255, 255, 255, 0.7);
-}
 
 .action-label {
   font-size: 20rpx;
@@ -286,7 +292,27 @@ function onProgressTap(e: any) {
   margin-bottom: 40rpx;
 }
 
-.progress-bar { padding: 20rpx 0; }
+.progress-bar {
+  padding: 20rpx 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.player-time-tooltip {
+  position: absolute;
+  top: -10rpx;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.player-tooltip-text {
+  font-size: 22rpx;
+  color: #1d1d1f;
+}
 
 .progress-bg {
   position: relative;
@@ -338,11 +364,9 @@ function onProgressTap(e: any) {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
-.mode-icon { font-size: 36rpx; }
-.nav-icon { font-size: 40rpx; color: #ffffff; }
-.list-icon { font-size: 36rpx; color: rgba(255,255,255,0.6); }
 
 .play-pause-btn {
   width: 120rpx;
@@ -352,13 +376,11 @@ function onProgressTap(e: any) {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s ease;
   box-shadow: 0 8rpx 30rpx rgba(251, 114, 153, 0.4);
 }
 
-.play-icon {
-  font-size: 44rpx;
-  color: #ffffff;
-}
 
 .mode-label {
   margin-top: 24rpx;
@@ -378,74 +400,4 @@ function onProgressTap(e: any) {
 .empty-text { font-size: 32rpx; color: rgba(255,255,255,0.5); margin-bottom: 12rpx; }
 .empty-hint { font-size: 26rpx; color: rgba(255,255,255,0.3); }
 
-/* Queue */
-.queue-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 200;
-  display: flex;
-  align-items: flex-end;
-}
-
-.queue-panel {
-  width: 100%;
-  max-height: 60vh;
-  background-color: #1e1e2e;
-  border-radius: 28rpx 28rpx 0 0;
-  padding: 0 24rpx 24rpx;
-}
-
-.queue-handle {
-  width: 64rpx;
-  height: 8rpx;
-  background-color: rgba(255,255,255,0.2);
-  border-radius: 4rpx;
-  margin: 16rpx auto;
-}
-
-.queue-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16rpx 0 20rpx;
-}
-
-.queue-title { font-size: 30rpx; color: #ffffff; font-weight: 500; }
-.queue-close { font-size: 28rpx; color: rgba(255,255,255,0.5); }
-
-.queue-list { max-height: 50vh; }
-
-.queue-item {
-  display: flex;
-  align-items: center;
-  padding: 18rpx 12rpx;
-  border-radius: 12rpx;
-  gap: 16rpx;
-}
-
-.queue-item.active { background-color: rgba(251, 114, 153, 0.15); }
-.queue-item.active .queue-name { color: #fb7299; }
-.queue-item.active .queue-idx { color: #fb7299; }
-
-.queue-idx {
-  font-size: 24rpx;
-  color: rgba(255,255,255,0.3);
-  width: 40rpx;
-  text-align: center;
-}
-
-.queue-info { flex: 1; overflow: hidden; }
-
-.queue-name {
-  font-size: 27rpx;
-  color: #ffffff;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-bottom: 4rpx;
-}
-
-.queue-artist { font-size: 22rpx; color: rgba(255,255,255,0.4); }
 </style>

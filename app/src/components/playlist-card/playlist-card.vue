@@ -29,6 +29,7 @@ defineEmits<{ tap: []; delete: [] }>();
   border-radius: 20rpx;
   margin-bottom: 16rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  cursor: pointer;
 }
 
 .card-icon {

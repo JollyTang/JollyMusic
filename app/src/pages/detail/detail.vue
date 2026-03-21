@@ -5,12 +5,12 @@
     </view>
 
     <view v-else-if="videoInfo" class="detail">
-      <image class="cover" :src="videoInfo.cover" mode="aspectFill" />
+      <image class="cover" :src="api.proxyImage(videoInfo.cover)" mode="aspectFill" />
 
       <view class="info">
         <text class="title">{{ videoInfo.title }}</text>
         <view class="meta">
-          <image class="avatar" :src="videoInfo.owner.face" />
+          <image class="avatar" :src="api.proxyImage(videoInfo.owner.face)" />
           <text class="artist">{{ videoInfo.owner.name }}</text>
         </view>
         <text v-if="videoInfo.desc" class="desc">{{ videoInfo.desc }}</text>
@@ -41,7 +41,7 @@
       </view>
     </view>
 
-    <MiniPlayer />
+    <MiniPlayer :no-tab-bar="true" />
   </view>
 </template>
 

@@ -1,4 +1,5 @@
-const BASE_URL = '/api';
+const isDev = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+const BASE_URL = isDev ? '/api' : 'https://tang2000-jollymusic.hf.space/api';
 
 interface ApiResponse<T = any> {
   code: number;
@@ -74,5 +75,10 @@ export const api = {
 
   getAudioProxyUrl(url: string) {
     return `${BASE_URL}/audio/proxy?url=${encodeURIComponent(url)}`;
+  },
+
+  proxyImage(url: string) {
+    if (!url || !url.includes('hdslb.com')) return url;
+    return `${BASE_URL}/audio/image?url=${encodeURIComponent(url)}`;
   },
 };

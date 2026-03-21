@@ -1,41 +1,41 @@
 {
-  "name": "ListenMusic",
-  "appid": "__UNI__LISTENMUSIC",
-  "description": "B站音频播放器",
-  "versionName": "1.0.0",
-  "versionCode": "100",
-  "transformPx": false,
-  "app-plus": {
-    "modules": {},
-    "distribute": {
-      "android": {
-        "permissions": [
-          "<uses-permission android:name=\"android.permission.INTERNET\"/>"
-        ]
-      },
-      "ios": {}
-    }
-  },
-  "mp-weixin": {
-    "appid": "",
-    "setting": {
-      "urlCheck": false
-    },
-    "usingComponents": true
-  },
-  "h5": {
-    "title": "ListenMusic",
-    "router": {
-      "mode": "hash"
-    },
-    "devServer": {
-      "port": 5173,
-      "proxy": {
-        "/api": {
-          "target": "http://localhost:3001",
-          "changeOrigin": true
+    "name" : "ListenMusic",
+    "appid" : "__UNI__FF91CDF",
+    "description" : "B站音频播放器",
+    "versionName" : "1.0.0",
+    "versionCode" : "100",
+    "transformPx" : false,
+    "app-plus" : {
+        "modules" : {},
+        "distribute" : {
+            "android" : {
+                "permissions" : [ "<uses-permission android:name=\"android.permission.INTERNET\"/>" ]
+            },
+            "ios" : {
+                "dSYMs" : false
+            }
         }
-      }
+    },
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false
+        },
+        "usingComponents" : true
+    },
+    "h5" : {
+        "title" : "ListenMusic",
+        "router" : {
+            "mode" : "hash"
+        },
+        "devServer" : {
+            "port" : 5173,
+            "proxy" : {
+                "/api" : {
+                    "target" : "http://localhost:3001",
+                    "changeOrigin" : true
+                }
+            }
+        }
     }
-  }
 }

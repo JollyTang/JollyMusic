@@ -1,6 +1,6 @@
 <template>
   <view class="item" @tap="$emit('play')">
-    <image class="item-cover" :src="track.cover" mode="aspectFill" />
+    <image class="item-cover" :src="api.proxyImage(track.cover)" mode="aspectFill" />
     <view class="item-info">
       <text class="item-title" :class="{ active: isActive }">{{ track.title }}</text>
       <text class="item-artist">{{ track.artist }} · {{ formatDuration(track.duration) }}</text>
@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Track } from '../../utils/api';
+import { api, type Track } from '../../utils/api';
 
 defineProps<{
   track: Track;
@@ -37,6 +37,7 @@ function formatDuration(seconds: number): string {
   border-radius: 16rpx;
   margin-bottom: 12rpx;
   box-shadow: 0 1rpx 8rpx rgba(0, 0, 0, 0.03);
+  cursor: pointer;
 }
 
 .item-cover {

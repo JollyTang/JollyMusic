@@ -208,6 +208,7 @@ async function doImport() {
   background-color: #ffffff;
   border-radius: 30rpx;
   border: 2rpx solid #e5e5ea;
+  cursor: pointer;
 }
 
 .import-text {
@@ -221,6 +222,7 @@ async function doImport() {
   background: linear-gradient(135deg, #fb7299, #f04e7d);
   border-radius: 30rpx;
   box-shadow: 0 4rpx 16rpx rgba(251, 114, 153, 0.3);
+  cursor: pointer;
 }
 
 .create-text {
