@@ -3,6 +3,14 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.jollymusic.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    signingConfigs {
+        release {
+            storeFile file('listenmusic.keystore')
+            storePassword 'listenmusic123'
+            keyAlias 'listenmusic'
+            keyPassword 'listenmusic123'
+        }
+    }
     defaultConfig {
         applicationId "com.jollymusic.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -17,7 +25,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
