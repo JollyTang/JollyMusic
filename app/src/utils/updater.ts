@@ -25,6 +25,7 @@ async function fetchLatestRelease(): Promise<GithubRelease | null> {
       uni.request({
         url: `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
         header: { Accept: 'application/vnd.github.v3+json' },
+        timeout: 10000,
         success: (r) => resolve(r),
         fail: (e) => reject(e),
       });
@@ -32,14 +33,16 @@ async function fetchLatestRelease(): Promise<GithubRelease | null> {
     if (res.statusCode === 200 && res.data?.tag_name) {
       return res.data as GithubRelease;
     }
+    console.warn('[OTA] GitHub API returned status:', res.statusCode);
     return null;
-  } catch {
+  } catch (e) {
+    console.error('[OTA] Failed to fetch release:', e);
     return null;
   }
 }
 
 function findH5Asset(release: GithubRelease): string | null {
-  const asset = release.assets.find(a => a.name.endsWith('.zip') && a.name.includes('h5'));
+  const asset = release.assets.find(a => a.name === 'h5-bundle.zip');
   return asset?.browser_download_url || null;
 }
 
@@ -55,17 +58,29 @@ export async function checkForUpdate(): Promise<void> {
     await CapacitorUpdater.notifyAppReady();
 
     const release = await fetchLatestRelease();
-    if (!release) return;
+    if (!release) {
+      console.log('[OTA] No release found or network error');
+      return;
+    }
 
     const remoteVersion = parseVersion(release.tag_name);
     const localVersion = getCurrentVersion();
 
-    if (remoteVersion === localVersion) return;
+    console.log(`[OTA] Local: ${localVersion}, Remote: ${remoteVersion}`);
+
+    if (remoteVersion === localVersion) {
+      console.log('[OTA] Already up to date');
+      return;
+    }
 
     const downloadUrl = findH5Asset(release);
-    if (!downloadUrl) return;
+    if (!downloadUrl) {
+      console.log('[OTA] No h5-bundle.zip found in release assets');
+      return;
+    }
 
-    console.log(`[OTA] Downloading update: ${localVersion} -> ${remoteVersion}`);
+    console.log(`[OTA] Downloading: ${downloadUrl}`);
+    uni.showToast({ title: '发现新版本，更新中...', icon: 'none', duration: 3000 });
 
     const bundle = await CapacitorUpdater.download({
       url: downloadUrl,
@@ -75,8 +90,10 @@ export async function checkForUpdate(): Promise<void> {
     await CapacitorUpdater.set(bundle);
     setCurrentVersion(remoteVersion);
 
-    console.log(`[OTA] Update applied: ${remoteVersion}, will take effect on next launch`);
-  } catch (err) {
-    console.error('[OTA] Update check failed:', err);
+    uni.showToast({ title: '更新完成，重启生效', icon: 'success', duration: 2000 });
+    console.log(`[OTA] Update applied: ${remoteVersion}`);
+  } catch (err: any) {
+    console.error('[OTA] Update failed:', err);
+    uni.showToast({ title: '更新检查失败: ' + (err?.message || '网络错误'), icon: 'none', duration: 3000 });
   }
 }

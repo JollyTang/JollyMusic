@@ -25,37 +25,23 @@
             </view>
             <text class="play-all-text">播放全部 ({{ playlistStore.currentTracks.length }})</text>
           </view>
-          <view class="header-actions">
-            <view class="action-btn-sm" @tap="toggleReorder">
-              <text class="action-btn-text">{{ isReordering ? '完成' : '排序' }}</text>
-            </view>
-            <view class="action-btn-sm" @tap="sharePlaylist">
-              <text class="action-btn-text share-color">分享</text>
-            </view>
+          <view class="action-btn-sm" @tap="sharePlaylist">
+            <text class="action-btn-text share-color">分享</text>
           </view>
         </view>
 
-        <view v-if="isReordering" class="reorder-list">
-          <view
-            v-for="(track, index) in playlistStore.currentTracks"
-            :key="track.id"
-            class="reorder-item"
-          >
-            <view class="reorder-move">
-              <text class="move-btn" @tap="moveTrackUp(index)">↑</text>
-              <text class="move-btn" @tap="moveTrackDown(index)">↓</text>
-            </view>
-            <view class="reorder-info">
-              <text class="reorder-title">{{ track.title }}</text>
-              <text class="reorder-artist">{{ track.artist }}</text>
-            </view>
-          </view>
-        </view>
-
-        <view v-else>
+        <view
+          v-for="(track, idx) in playlistStore.currentTracks"
+          :key="track.id"
+          class="drag-track-item"
+          :class="{ dragging: dragIndex === idx, 'drag-over': dragOverIndex === idx && dragIndex !== idx }"
+          :draggable="true"
+          @dragstart="onDragStart(idx, $event)"
+          @dragover.prevent="onDragOver(idx)"
+          @dragend="onDragEnd"
+          @drop.prevent="onDrop(idx)"
+        >
           <TrackItem
-            v-for="track in playlistStore.currentTracks"
-            :key="track.id"
             :track="track"
             :is-active="isTrackPlaying(track)"
             :show-delete="true"
@@ -103,8 +89,9 @@ const playerStore = usePlayerStore();
 const playlistId = ref('');
 const showShareModal = ref(false);
 const shareCode = ref('');
-const isReordering = ref(false);
 const currentPlaylist = ref<any>(null);
+const dragIndex = ref(-1);
+const dragOverIndex = ref(-1);
 
 onMounted(() => {
   const pages = getCurrentPages();
@@ -115,6 +102,31 @@ onMounted(() => {
     currentPlaylist.value = playlistStore.getPlaylistById(playlistId.value);
   }
 });
+
+function onDragStart(idx: number, e: any) {
+  dragIndex.value = idx;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  }
+}
+
+function onDragOver(idx: number) {
+  dragOverIndex.value = idx;
+}
+
+function onDrop(toIdx: number) {
+  if (dragIndex.value >= 0 && dragIndex.value !== toIdx) {
+    playlistStore.reorderTrack(playlistId.value, dragIndex.value, toIdx);
+  }
+  dragIndex.value = -1;
+  dragOverIndex.value = -1;
+}
+
+function onDragEnd() {
+  dragIndex.value = -1;
+  dragOverIndex.value = -1;
+}
 
 function renamePlaylist() {
   const pl = playlistStore.getPlaylistById(playlistId.value);
@@ -134,19 +146,6 @@ function renamePlaylist() {
   });
 }
 
-function toggleReorder() {
-  isReordering.value = !isReordering.value;
-}
-
-function moveTrackUp(index: number) {
-  if (index <= 0) return;
-  playlistStore.reorderTrack(playlistId.value, index, index - 1);
-}
-
-function moveTrackDown(index: number) {
-  if (index >= playlistStore.currentTracks.length - 1) return;
-  playlistStore.reorderTrack(playlistId.value, index, index + 1);
-}
 
 function playTrack(track: Track) {
   const idx = playlistStore.currentTracks.findIndex(
@@ -294,11 +293,6 @@ function copyShareCode() {
   cursor: pointer;
 }
 
-.header-actions {
-  display: flex;
-  gap: 12rpx;
-}
-
 .action-btn-sm {
   padding: 10rpx 24rpx;
   background-color: #ffffff;
@@ -317,59 +311,17 @@ function copyShareCode() {
   color: #fb7299;
 }
 
-.reorder-list {
-  margin-top: 12rpx;
+.drag-track-item {
+  cursor: grab;
+  transition: opacity 0.15s, box-shadow 0.15s;
 }
 
-.reorder-item {
-  display: flex;
-  align-items: center;
-  padding: 20rpx;
-  background-color: #ffffff;
-  border-radius: 16rpx;
-  margin-bottom: 12rpx;
+.drag-track-item.dragging {
+  opacity: 0.35;
 }
 
-.reorder-move {
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-  margin-right: 20rpx;
-}
-
-.move-btn {
-  width: 56rpx;
-  height: 48rpx;
-  background-color: #f2f2f7;
-  border-radius: 8rpx;
-  text-align: center;
-  line-height: 48rpx;
-  font-size: 28rpx;
-  color: #1d1d1f;
-  cursor: pointer;
-}
-
-.move-btn:active {
-  background-color: #e5e5ea;
-}
-
-.reorder-info {
-  flex: 1;
-  overflow: hidden;
-}
-
-.reorder-title {
-  font-size: 28rpx;
-  color: #1d1d1f;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reorder-artist {
-  font-size: 22rpx;
-  color: #8e8e93;
+.drag-track-item.drag-over {
+  box-shadow: 0 -4rpx 0 0 #fb7299;
 }
 
 /* Modal */
