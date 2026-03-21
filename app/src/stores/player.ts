@@ -8,8 +8,12 @@ export interface PlayingTrack extends Track {
   audioUrl?: string;
 }
 
+function isNativePlatform(): boolean {
+  return typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+}
+
 interface AudioAdapter {
-  play(url: string): void;
+  play(url: string, meta?: { title?: string; artist?: string }): void;
   pause(): void;
   resume(): void;
   seek(time: number): void;
@@ -17,10 +21,7 @@ interface AudioAdapter {
   onTimeUpdate(cb: (currentTime: number, duration: number) => void): void;
   onEnded(cb: () => void): void;
   onError(cb: (err: any) => void): void;
-}
-
-function isNativePlatform(): boolean {
-  return typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+  onMediaAction?(cb: (action: string) => void): void;
 }
 
 function createNativeAudioAdapter(): AudioAdapter {
@@ -30,6 +31,7 @@ function createNativeAudioAdapter(): AudioAdapter {
   let timeUpdateCb: ((t: number, d: number) => void) | null = null;
   let endedCb: (() => void) | null = null;
   let errorCb: ((err: any) => void) | null = null;
+  let mediaActionCb: ((action: string) => void) | null = null;
 
   NativeAudio.addListener('timeUpdate', (data: any) => {
     timeUpdateCb?.(data.currentTime, data.duration);
@@ -40,10 +42,13 @@ function createNativeAudioAdapter(): AudioAdapter {
   NativeAudio.addListener('error', (data: any) => {
     errorCb?.(data);
   });
+  NativeAudio.addListener('mediaAction', (data: any) => {
+    mediaActionCb?.(data.action);
+  });
 
   return {
-    play(url: string) {
-      NativeAudio.play({ url });
+    play(url: string, meta?: { title?: string; artist?: string }) {
+      NativeAudio.play({ url, title: meta?.title || '', artist: meta?.artist || '' });
     },
     pause() {
       NativeAudio.pause();
@@ -60,6 +65,7 @@ function createNativeAudioAdapter(): AudioAdapter {
     onTimeUpdate(cb) { timeUpdateCb = cb; },
     onEnded(cb) { endedCb = cb; },
     onError(cb) { errorCb = cb; },
+    onMediaAction(cb) { mediaActionCb = cb; },
   };
 }
 
@@ -76,7 +82,7 @@ function createWebAudioAdapter(): AudioAdapter {
   });
 
   return {
-    play(url: string) {
+    play(url: string, _meta?: { title?: string; artist?: string }) {
       ctx.src = url;
       ctx.play();
     },
@@ -126,6 +132,23 @@ export const usePlayerStore = defineStore('player', () => {
         console.error('Audio error:', err);
         isPlaying.value = false;
       });
+
+      audio.onMediaAction?.((action) => {
+        switch (action) {
+          case 'play':
+            isPlaying.value = true;
+            break;
+          case 'pause':
+            isPlaying.value = false;
+            break;
+          case 'next':
+            playNext();
+            break;
+          case 'previous':
+            playPrev();
+            break;
+        }
+      });
     }
     return audio;
   }
@@ -136,7 +159,7 @@ export const usePlayerStore = defineStore('player', () => {
       const proxyUrl = api.getAudioProxyUrl(streamInfo.url);
 
       const a = getAudio();
-      a.play(proxyUrl);
+      a.play(proxyUrl, { title: track.title, artist: track.artist });
 
       currentTrack.value = { ...track, audioUrl: proxyUrl };
       isPlaying.value = true;

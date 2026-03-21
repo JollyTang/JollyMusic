@@ -132,19 +132,24 @@
 
 ## v2.1.0 - Android 原生增强 (进行中)
 
-### 原生音频播放
-- [ ] Capacitor 原生音频插件 (NativeAudioPlugin.kt，封装 Android MediaPlayer)
-- [ ] 音频焦点策略：忽略 AUDIOFOCUS_LOSS，允许与其他 App 音频混合播放
-- [ ] Android Foreground Service 前台服务 (后台播放不被系统回收)
-- [ ] 通知栏常驻播放通知
-- [ ] player.ts 平台检测：Capacitor 走原生插件，Web 走 uni.createInnerAudioContext()
+### 原生音频播放 (已完成)
+- [x] Capacitor 原生音频插件 (NativeAudioPlugin.java，封装 Android MediaPlayer)
+- [x] 音频焦点策略：忽略 AUDIOFOCUS_LOSS，允许与其他 App 音频混合播放
+- [x] Android Foreground Service 前台服务 (后台播放不被系统回收)
+- [x] 通知栏常驻播放通知
+- [x] player.ts 平台检测：Capacitor 走原生插件，Web 走 uni.createInnerAudioContext()
 
-### OTA 热更新
-- [ ] 集成 @capgo/capacitor-updater 插件
-- [ ] App 启动时检查 GitHub Releases 最新 H5 资源版本
-- [ ] 后台静默下载更新包并自动应用
-- [ ] deploy.sh 构建后自动发布 H5 zip 到 GitHub Releases
-- [ ] GitHub Actions 构建后自动发布 H5 资源包
+### 锁屏/通知栏媒体控制 (已完成)
+- [x] MediaSession 注册 (锁屏控制、原子随身听、蓝牙耳机按键自动生效)
+- [x] MediaStyle 通知栏 (显示歌名、歌手、上一曲/暂停/下一曲按钮)
+- [x] 通知栏/锁屏操作与 JS 播放器状态双向同步
+
+### OTA 热更新 (已完成)
+- [x] 集成 @capgo/capacitor-updater 插件
+- [x] App 启动时检查 GitHub Releases 最新 H5 资源版本
+- [x] 后台静默下载更新包并自动应用
+- [x] deploy.sh 构建后自动发布 H5 zip 到 GitHub Releases
+- [x] GitHub Actions 构建后自动发布 H5 资源包
 
 ### Android APK 构建 (已完成)
 - [x] 集成 Capacitor + 生成 Android 工程

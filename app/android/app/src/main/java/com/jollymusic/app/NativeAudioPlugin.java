@@ -18,7 +18,6 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.IOException;
-import java.util.HashMap;
 
 @CapacitorPlugin(name = "NativeAudio")
 public class NativeAudioPlugin extends Plugin {
@@ -30,11 +29,92 @@ public class NativeAudioPlugin extends Plugin {
     private boolean isPrepared = false;
     private AudioManager audioManager;
     private AudioFocusRequest focusRequest;
+    private String currentTitle = "";
+    private String currentArtist = "";
 
     @Override
     public void load() {
         handler = new Handler(Looper.getMainLooper());
         audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        registerMediaCallbacks();
+    }
+
+    private void registerMediaCallbacks() {
+        AudioService.setControlCallback(new AudioService.MediaControlCallback() {
+            @Override
+            public void onPlay() {
+                handler.post(() -> {
+                    if (mediaPlayer != null && isPrepared && !mediaPlayer.isPlaying()) {
+                        mediaPlayer.start();
+                        startTimeUpdates();
+                        updateServiceState(true);
+                        notifyListeners("mediaAction", jsObj("action", "play"));
+                    }
+                });
+            }
+
+            @Override
+            public void onPause() {
+                handler.post(() -> {
+                    if (mediaPlayer != null && isPrepared && mediaPlayer.isPlaying()) {
+                        mediaPlayer.pause();
+                        stopTimeUpdates();
+                        updateServiceState(false);
+                        notifyListeners("mediaAction", jsObj("action", "pause"));
+                    }
+                });
+            }
+
+            @Override
+            public void onNext() {
+                notifyListeners("mediaAction", jsObj("action", "next"));
+            }
+
+            @Override
+            public void onPrevious() {
+                notifyListeners("mediaAction", jsObj("action", "previous"));
+            }
+
+            @Override
+            public void onSeekTo(long pos) {
+                handler.post(() -> {
+                    if (mediaPlayer != null && isPrepared) {
+                        mediaPlayer.seekTo((int) pos);
+                    }
+                });
+            }
+        });
+
+        MediaButtonReceiver.setCallback(new MediaButtonReceiver.MediaButtonCallback() {
+            @Override
+            public void onTogglePlay() {
+                handler.post(() -> {
+                    if (mediaPlayer != null && isPrepared) {
+                        if (mediaPlayer.isPlaying()) {
+                            mediaPlayer.pause();
+                            stopTimeUpdates();
+                            updateServiceState(false);
+                            notifyListeners("mediaAction", jsObj("action", "pause"));
+                        } else {
+                            mediaPlayer.start();
+                            startTimeUpdates();
+                            updateServiceState(true);
+                            notifyListeners("mediaAction", jsObj("action", "play"));
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onNext() {
+                notifyListeners("mediaAction", jsObj("action", "next"));
+            }
+
+            @Override
+            public void onPrevious() {
+                notifyListeners("mediaAction", jsObj("action", "previous"));
+            }
+        });
     }
 
     @PluginMethod
@@ -44,6 +124,11 @@ public class NativeAudioPlugin extends Plugin {
             call.reject("URL is required");
             return;
         }
+
+        String title = call.getString("title", "");
+        String artist = call.getString("artist", "");
+        currentTitle = title;
+        currentArtist = artist;
 
         handler.post(() -> {
             try {
@@ -66,6 +151,9 @@ public class NativeAudioPlugin extends Plugin {
                     startForegroundService();
                     startTimeUpdates();
 
+                    updateServiceMeta(currentTitle, currentArtist, mp.getDuration());
+                    updateServiceState(true);
+
                     JSObject ret = new JSObject();
                     ret.put("duration", mp.getDuration() / 1000.0);
                     notifyListeners("prepared", ret);
@@ -73,6 +161,7 @@ public class NativeAudioPlugin extends Plugin {
 
                 mediaPlayer.setOnCompletionListener(mp -> {
                     stopTimeUpdates();
+                    updateServiceState(false);
                     notifyListeners("ended", new JSObject());
                 });
 
@@ -100,6 +189,7 @@ public class NativeAudioPlugin extends Plugin {
             if (mediaPlayer != null && isPrepared && mediaPlayer.isPlaying()) {
                 mediaPlayer.pause();
                 stopTimeUpdates();
+                updateServiceState(false);
             }
             call.resolve();
         });
@@ -111,6 +201,7 @@ public class NativeAudioPlugin extends Plugin {
             if (mediaPlayer != null && isPrepared && !mediaPlayer.isPlaying()) {
                 mediaPlayer.start();
                 startTimeUpdates();
+                updateServiceState(true);
             }
             call.resolve();
         });
@@ -198,6 +289,27 @@ public class NativeAudioPlugin extends Plugin {
         audioManager.requestAudioFocus(focusRequest);
     }
 
+    private void updateServiceMeta(String title, String artist, long durationMs) {
+        Context ctx = getContext();
+        Intent intent = new Intent(ctx, AudioService.class);
+        intent.setAction(AudioService.ACTION_UPDATE_META);
+        intent.putExtra("title", title);
+        intent.putExtra("artist", artist);
+        intent.putExtra("duration", durationMs);
+        ctx.startService(intent);
+    }
+
+    private void updateServiceState(boolean playing) {
+        Context ctx = getContext();
+        Intent intent = new Intent(ctx, AudioService.class);
+        intent.setAction(AudioService.ACTION_UPDATE_STATE);
+        intent.putExtra("isPlaying", playing);
+        if (mediaPlayer != null && isPrepared) {
+            intent.putExtra("position", (long) mediaPlayer.getCurrentPosition());
+        }
+        ctx.startService(intent);
+    }
+
     private void startTimeUpdates() {
         stopTimeUpdates();
         timeUpdateRunnable = new Runnable() {
@@ -255,6 +367,12 @@ public class NativeAudioPlugin extends Plugin {
     private void stopForegroundService() {
         Context ctx = getContext();
         ctx.stopService(new Intent(ctx, AudioService.class));
+    }
+
+    private JSObject jsObj(String key, String value) {
+        JSObject obj = new JSObject();
+        obj.put(key, value);
+        return obj;
     }
 
     @Override
