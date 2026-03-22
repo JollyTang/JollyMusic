@@ -90,11 +90,11 @@ else
   exit 1
 fi
 
-# ---- 触发 APK 构建 ----
-echo "[5/5] 推送代码到 GitHub 触发 APK 构建..."
+# ---- 推送代码 ----
+echo "[5/5] 推送代码到 GitHub..."
 cd "$ROOT_DIR"
-git push origin main 2>&1 && echo "  ✓ 已推送到 main，GitHub Actions 将自动构建 APK" || {
-  echo "  ✗ 推送 main 失败，APK 构建未触发"
+git push origin main 2>&1 && echo "  ✓ 已推送到 main" || {
+  echo "  ✗ 推送 main 失败"
 }
 
 # 清理
@@ -113,7 +113,8 @@ echo "========================================="
 echo "  部署完成！"
 echo "  前端: https://jollytang.github.io/JollyMusic/"
 echo "  后端: https://${HF_USER}-$(echo $HF_SPACE | tr '[:upper:]' '[:lower:]').hf.space"
-echo "  APK:  GitHub Actions 自动构建，完成后在 Releases 下载"
-echo "  OTA:  H5 资源包自动发布到 Releases，App 启动时自动更新"
+echo "  APK:  如需构建新 APK，请前往 GitHub Actions 手动触发:"
+echo "        https://github.com/JollyTang/JollyMusic/actions/workflows/build-apk.yml"
+echo "  OTA:  前端更新通过 APK 热更新自动推送"
 echo "  GitHub Pages 需要 1-2 分钟生效"
 echo "========================================="
