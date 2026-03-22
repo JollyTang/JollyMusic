@@ -155,18 +155,38 @@ export const usePlayerStore = defineStore('player', () => {
 
   async function play(track: PlayingTrack) {
     try {
-      const streamInfo = await api.getAudioStream(track.bvid, track.cid);
-      const proxyUrl = api.getAudioProxyUrl(streamInfo.url);
+      const source = track.source || 'bilibili';
+      let audioUrl: string;
+      let coverUrl: string;
+
+      if (source === 'netease') {
+        if (track.isVip) {
+          uni.showToast({ title: '该歌曲需要网易云VIP', icon: 'none' });
+          playNext();
+          return;
+        }
+        const songUrl = await api.getNeteaseSongUrl(Number(track.sourceId));
+        if (!songUrl.url) {
+          uni.showToast({ title: 'VIP歌曲或暂无音源', icon: 'none' });
+          playNext();
+          return;
+        }
+        audioUrl = songUrl.url;
+        coverUrl = track.cover;
+      } else {
+        const streamInfo = await api.getAudioStream(track.bvid, track.cid);
+        audioUrl = api.getAudioProxyUrl(streamInfo.url);
+        coverUrl = api.proxyImage(track.cover);
+      }
 
       const a = getAudio();
-      const coverUrl = api.proxyImage(track.cover);
-      a.play(proxyUrl, { title: track.title, artist: track.artist, cover: coverUrl });
+      a.play(audioUrl, { title: track.title, artist: track.artist, cover: coverUrl });
 
-      currentTrack.value = { ...track, audioUrl: proxyUrl };
+      currentTrack.value = { ...track, audioUrl };
       isPlaying.value = true;
 
       const idx = queue.value.findIndex(
-        (t) => t.bvid === track.bvid && t.cid === track.cid
+        (t) => t.id === track.id || (t.bvid === track.bvid && t.cid === track.cid)
       );
       if (idx >= 0) {
         currentIndex.value = idx;

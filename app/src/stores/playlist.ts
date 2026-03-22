@@ -69,7 +69,7 @@ export const usePlaylistStore = defineStore('playlist', () => {
 
   function addTrack(
     playlistId: string,
-    track: { bvid: string; cid: number; title: string; artist: string; cover: string; duration: number }
+    track: { bvid: string; cid: number; title: string; artist: string; cover: string; duration: number; source?: string; sourceId?: string }
   ) {
     const pl = playlists.value.find((p) => p.id === playlistId);
     if (!pl) {
@@ -77,13 +77,18 @@ export const usePlaylistStore = defineStore('playlist', () => {
       return;
     }
 
-    const exists = pl.tracks.some((t) => t.bvid === track.bvid && t.cid === track.cid);
+    const exists = pl.tracks.some((t) => {
+      if (track.source === 'netease' && t.source === 'netease') {
+        return t.sourceId === track.sourceId;
+      }
+      return t.bvid === track.bvid && t.cid === track.cid && t.bvid !== '';
+    });
     if (exists) {
       uni.showToast({ title: '曲目已在歌单中', icon: 'none' });
       return;
     }
 
-    pl.tracks.push({ ...track, id: genId() });
+    pl.tracks.push({ ...track, id: genId() } as any);
     if (!pl.cover && track.cover) {
       pl.cover = track.cover;
     }

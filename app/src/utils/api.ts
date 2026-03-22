@@ -1,5 +1,9 @@
 const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
-const isDev = !isNative && typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+const isDev = !isNative && typeof window !== 'undefined' && (
+  window.location?.hostname === 'localhost' ||
+  window.location?.hostname === '127.0.0.1' ||
+  window.location?.port === '5173'
+);
 const BASE_URL = isDev ? '/api' : 'https://tang2000-jollymusic.hf.space/api';
 
 interface ApiResponse<T = any> {
@@ -28,6 +32,8 @@ async function request<T>(url: string, options: UniApp.RequestOptions = {} as an
   });
 }
 
+export type TrackSource = 'bilibili' | 'netease' | 'qq';
+
 export interface VideoInfo {
   bvid: string;
   aid: number;
@@ -48,12 +54,15 @@ export interface AudioStream {
 
 export interface Track {
   id: string;
+  source?: TrackSource;
+  sourceId?: string;
   bvid: string;
   cid: number;
   title: string;
   artist: string;
   cover: string;
   duration: number;
+  isVip?: boolean;
 }
 
 export interface Playlist {
@@ -63,6 +72,21 @@ export interface Playlist {
   tracks: Track[];
   created_at: number;
   updated_at: number;
+}
+
+export interface NeteaseSearchTrack {
+  id: number;
+  name: string;
+  artists: string;
+  album: string;
+  cover: string;
+  duration: number;
+  isVip: boolean;
+}
+
+export interface NeteaseSongUrl {
+  url: string | null;
+  br: number;
 }
 
 export const api = {
@@ -81,5 +105,13 @@ export const api = {
   proxyImage(url: string) {
     if (!url || !url.includes('hdslb.com')) return url;
     return `${BASE_URL}/audio/image?url=${encodeURIComponent(url)}`;
+  },
+
+  searchNetease(keyword: string, limit = 20) {
+    return request<NeteaseSearchTrack[]>(`/music/search?keyword=${encodeURIComponent(keyword)}&platform=netease&limit=${limit}`);
+  },
+
+  getNeteaseSongUrl(id: number) {
+    return request<NeteaseSongUrl>(`/music/url/netease/${id}`);
   },
 };

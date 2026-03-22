@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { videoRouter } from './routes/video';
 import { audioRouter } from './routes/audio';
+import { musicRouter } from './routes/music';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -11,6 +12,7 @@ app.use(express.json());
 
 app.use('/api/video', videoRouter);
 app.use('/api/audio', audioRouter);
+app.use('/api/music', musicRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
