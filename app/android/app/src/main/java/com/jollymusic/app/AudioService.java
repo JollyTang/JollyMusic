@@ -35,7 +35,7 @@ public class AudioService extends Service {
     public static final String ACTION_UPDATE_STATE = "com.jollymusic.UPDATE_STATE";
 
     private MediaSessionCompat mediaSession;
-    private String currentTitle = "ListenMusic";
+    private String currentTitle = "JollyMusic";
     private String currentArtist = "";
     private boolean currentIsPlaying = false;
     private long currentDuration = 0;
@@ -74,7 +74,7 @@ public class AudioService extends Service {
                     currentArtist = intent.getStringExtra("artist");
                     currentDuration = intent.getLongExtra("duration", 0);
                     String coverUrl = intent.getStringExtra("coverUrl");
-                    if (currentTitle == null) currentTitle = "ListenMusic";
+                    if (currentTitle == null) currentTitle = "JollyMusic";
                     if (currentArtist == null) currentArtist = "";
                     updateMediaSessionMetadata();
                     updateNotification();
@@ -112,7 +112,7 @@ public class AudioService extends Service {
     }
 
     private void initMediaSession() {
-        mediaSession = new MediaSessionCompat(this, "ListenMusic");
+        mediaSession = new MediaSessionCompat(this, "JollyMusic");
         mediaSession.setFlags(
             MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
             | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS

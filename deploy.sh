@@ -1,5 +1,5 @@
 #!/bin/bash
-# ListenMusic 一键部署到正式环境
+# JollyMusic 一键部署到正式环境
 # 用法: bash deploy.sh
 # 部署前端到 GitHub Pages，后端到 Hugging Face Spaces
 
@@ -14,7 +14,7 @@ GITHUB_REPO="git@github.com:JollyTang/JollyMusic.git"
 DEPLOY_TMP="/tmp/lm-deploy-$$"
 
 echo "========================================="
-echo "  ListenMusic 正式环境一键部署"
+echo "  JollyMusic 正式环境一键部署"
 echo "========================================="
 echo ""
 
@@ -40,7 +40,7 @@ app_port: 7860
 pinned: false
 ---
 
-ListenMusic API - B站音频代理服务
+JollyMusic API - B站音频代理服务
 HFEOF
 
 echo "[2/4] 推送后端到 Hugging Face..."

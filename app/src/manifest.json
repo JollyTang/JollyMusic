@@ -1,5 +1,5 @@
 {
-    "name" : "ListenMusic",
+    "name" : "JollyMusic",
     "appid" : "__UNI__FF91CDF",
     "description" : "B站音频播放器",
     "versionName" : "1.0.0",
@@ -24,7 +24,7 @@
         "usingComponents" : true
     },
     "h5" : {
-        "title" : "ListenMusic",
+        "title" : "JollyMusic",
         "router" : {
             "mode" : "hash"
         },

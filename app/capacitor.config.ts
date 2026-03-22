@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.jollymusic.app',
-  appName: 'ListenMusic',
+  appName: 'JollyMusic',
   webDir: 'dist/build/h5',
   server: {
     androidScheme: 'https',

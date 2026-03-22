@@ -1,91 +1,117 @@
-# ListenMusic - B站音频播放器
+# JollyMusic - 多平台音乐播放器
 
-通过输入B站视频的BV号，提取并播放对应视频的音频。支持歌单管理、分享码互传歌单，可部署为H5网页或Android App。
+聚合多平台音源的音乐播放器，支持网易云音乐搜歌和B站视频音频提取。可部署为 H5 网页或 Android App。
 
 ## 功能特性
 
-- **BV号搜索** — 输入BV号即可获取视频信息，支持自动解析链接
-- **音频播放** — 提取视频音频轨道进行在线播放
-- **分P选择** — 多P视频可选择特定分P播放
-- **歌单管理** — 创建歌单、添加/移除曲目，数据存储在本地
-- **播放控制** — 播放/暂停、上一首/下一首、进度拖动
-- **播放模式** — 顺序播放、随机播放、单曲循环
-- **收藏功能** — 播放时随时将当前曲目加入歌单
-- **分享码** — 将歌单生成分享码，发给朋友一键导入 (开发中)
+- **网易云音乐** — 搜索歌名/歌手，直接播放（标准音质免登录，VIP 歌曲自动标记）
+- **B站音频** — 输入BV号提取视频音频，支持多P选择
+- **智能搜索** — 输入BV号自动识别走B站，输入歌名走网易云
+- **歌单管理** — 创建/重命名/删除歌单，支持混合存放不同平台的歌曲
+- **播放控制** — 播放/暂停、上下曲、进度拖动、顺序/随机/单曲循环
+- **播放队列** — 拖拽排序、下一首播放、队列管理
+- **分享码** — 歌单生成分享码，发给朋友一键导入
+- **Android App** — Capacitor 打包，支持后台播放、锁屏/通知栏媒体控制
+- **OTA 热更新** — 前端更新自动推送，无需重新下载 APK
 
 ## 技术栈
 
 - **前端**: uni-app + Vue 3 + TypeScript + Pinia
-- **后端**: Node.js + Express + TypeScript
-- **存储**: 歌单数据存储在客户端本地 (localStorage)，后端为无状态代理服务
+- **后端**: Node.js + Express + TypeScript + NeteaseCloudMusicApi
+- **Android**: Capacitor + 原生 MediaPlayer + MediaSession
+- **存储**: 歌单数据存储在客户端本地 (localStorage)
+- **部署**: GitHub Pages (前端) + Hugging Face Spaces (后端) + GitHub Actions (APK 构建)
 
 ## 项目结构
 
 ```
-ListenMusic/
-├── server/        # 后端代理服务 (B站API/音频/图片代理)
-├── app/           # 前端 uni-app (H5 / Android App)
-├── ROADMAP.md     # 需求追踪与版本规划
-└── README.md
+JollyMusic/
+├── server/          # 后端代理服务 (B站/网易云 API 代理)
+│   └── src/
+│       ├── bilibili/    # B站音频适配器
+│       ├── netease/     # 网易云音乐适配器
+│       └── routes/      # API 路由
+├── app/             # 前端 uni-app (H5 / Android)
+│   ├── src/             # 前端源码
+│   └── android/         # Capacitor Android 工程
+├── .github/workflows/   # GitHub Actions (APK 自动构建)
+├── deploy.sh        # 一键部署脚本
+├── dev.sh           # 本地开发启动脚本
+└── ROADMAP.md       # 需求追踪与版本规划
 ```
 
 ## 快速开始
 
-### 1. 启动后端
+### 一键启动（推荐）
 
 ```bash
-cd server
-npm install
-npm run dev
+./dev.sh
 ```
 
-后端服务默认运行在 `http://localhost:3001`
+同时启动前端和后端，浏览器访问 `http://localhost:5173`。
 
-### 2. 启动前端 (H5)
+### 手动启动
 
 ```bash
-cd app
-npm install
-npm run dev:h5
-```
+# 后端
+cd server && npm install && npm run dev
 
-前端H5运行在 `http://localhost:5173`，API请求自动代理到后端。
+# 前端（另一个终端）
+cd app && npm install && npm run dev:h5
+```
 
 手机测试：确保手机与电脑在同一局域网，访问 `http://电脑IP:5173`
 
 ## 后端 API
 
-后端是一个无状态的代理服务，不存储任何用户数据。
+后端是无状态代理服务，不存储任何用户数据。
 
 | 路由 | 功能 |
 |------|------|
-| `GET /api/video/info/:bvid` | 获取视频信息（标题、封面、分P列表） |
-| `GET /api/video/audio/:bvid/:cid` | 获取音频流地址 |
-| `GET /api/audio/proxy?url=...` | 代理B站音频流 |
-| `GET /api/audio/image?url=...` | 代理B站封面图片 |
+| `GET /api/video/info/:bvid` | 获取B站视频信息 |
+| `GET /api/video/audio/:bvid/:cid` | 获取B站音频流地址 |
+| `GET /api/music/search?keyword=&platform=` | 搜索歌曲（网易云） |
+| `GET /api/music/url/:platform/:id` | 获取歌曲播放 URL |
+| `GET /api/audio/proxy?url=` | 代理音频流 |
+| `GET /api/audio/image?url=` | 代理B站封面图片 |
 | `GET /api/health` | 健康检查 |
 
-## 注意事项
+## 部署
 
-- 音频通过后端代理播放（B站CDN需要特定Referer头，前端无法直接请求）
-- 图片同样通过后端代理（B站封面有防盗链保护）
-- 未登录状态下音质为 64K/132K
-- 音频流URL有效期约120分钟，过期后自动重新获取
+```bash
+./deploy.sh
+```
+
+自动部署后端到 Hugging Face Spaces，前端到 GitHub Pages。
+
+如需构建 Android APK，在 GitHub Actions 页面手动触发 Build APK workflow。
 
 ## 版本记录
 
+### v3.0.0
+- 接入网易云音乐：搜索歌名直接播放，VIP 歌曲标记
+- 搜索页平台切换 Tab（网易云/B站），智能 BV号 识别
+- Track 数据模型支持多平台 (source 字段)，歌单可混合存放
+- 后端音源适配器架构，易于扩展新平台
+
+### v2.1.0
+- Android APK 打包 (Capacitor)
+- 原生音频播放，支持后台播放和与其他 App 混合播放
+- 锁屏/通知栏媒体控制 (MediaSession)
+- OTA 热更新，前端更新自动推送
+- 歌单封面显示、重命名、拖拽排序
+
+### v1.2.0
+- 部署上线：GitHub Pages + Hugging Face Spaces
+- 一键部署脚本 (deploy.sh)
+
 ### v1.1.0
-- 歌单存储迁移到客户端本地 (localStorage)，后端变为无状态代理，无需数据库
-- 新增歌单分享码功能：生成分享码发给朋友，对方粘贴即可一键导入完整歌单
-- 移除后端 SQLite 依赖和歌单 API，后端体积更小、部署更简单
-- 后端新增图片代理，修复B站封面防盗链导致的图片不显示问题
-- 播放器和迷你播放栏新增收藏按钮
+- 歌单存储迁移到客户端本地，后端变为无状态代理
+- 歌单分享码功能
 
 ### v1.0.0
 - 基础播放功能：BV号搜索、音频播放、分P选择
-- 歌单管理：创建/删除歌单、添加/移除曲目
-- 播放控制：播放模式、进度条、播放队列
-- B站 WBI 签名、音频代理
+- 歌单管理、播放控制、播放队列
 
 ## 开发规划
 

@@ -3,7 +3,7 @@ import { onLaunch } from '@dcloudio/uni-app';
 import { checkForUpdate } from './utils/updater';
 
 onLaunch(() => {
-  console.log('ListenMusic App launched');
+  console.log('JollyMusic App launched');
   checkForUpdate();
 });
 </script>

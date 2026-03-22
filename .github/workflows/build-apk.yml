@@ -51,13 +51,13 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Rename APK
-        run: cp app/android/app/build/outputs/apk/release/app-release.apk ListenMusic.apk
+        run: cp app/android/app/build/outputs/apk/release/app-release.apk JollyMusic.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ListenMusic-debug
-          path: ListenMusic.apk
+          name: JollyMusic-debug
+          path: JollyMusic.apk
           retention-days: 30
 
       - name: Get version
@@ -76,9 +76,9 @@ jobs:
           body: |
             自动构建 #${{ github.run_number }}
 
-            **APK**: 首次安装或原生更新时下载 `ListenMusic.apk`
+            **APK**: 首次安装或原生更新时下载 `JollyMusic.apk`
             **OTA**: 已安装用户无需操作，App 启动时自动更新前端
           files: |
-            ListenMusic.apk
+            JollyMusic.apk
             h5-bundle.zip
           make_latest: true

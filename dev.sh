@@ -1,5 +1,5 @@
 #!/bin/bash
-# ListenMusic 本地开发一键启动
+# JollyMusic 本地开发一键启动
 # 用法: bash dev.sh
 
 set -e
@@ -7,7 +7,7 @@ set -e
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "========================================="
-echo "  ListenMusic 本地开发环境启动"
+echo "  JollyMusic 本地开发环境启动"
 echo "========================================="
 
 # 检查依赖

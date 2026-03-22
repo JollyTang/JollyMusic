@@ -19,7 +19,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`ListenMusic server running on http://localhost:${PORT}`);
+  console.log(`JollyMusic server running on http://localhost:${PORT}`);
 });
 
 server.on('error', (err: NodeJS.ErrnoException) => {
