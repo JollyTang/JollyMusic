@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -23,7 +24,17 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "NativeAudio")
 public class NativeAudioPlugin extends Plugin {
@@ -35,8 +46,12 @@ public class NativeAudioPlugin extends Plugin {
     private boolean isPrepared = false;
     private AudioManager audioManager;
     private AudioFocusRequest focusRequest;
-    private String currentTitle = "";
-    private String currentArtist = "";
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    private ArrayList<JSONObject> queue = new ArrayList<>();
+    private int queueIndex = -1;
+    private String playMode = "sequence";
+    private String baseUrl = "";
 
     @Override
     public void load() {
@@ -87,12 +102,12 @@ public class NativeAudioPlugin extends Plugin {
 
             @Override
             public void onNext() {
-                notifyListeners("mediaAction", jsObj("action", "next"));
+                handler.post(() -> playNextInQueue());
             }
 
             @Override
             public void onPrevious() {
-                notifyListeners("mediaAction", jsObj("action", "previous"));
+                handler.post(() -> playPrevInQueue());
             }
 
             @Override
@@ -127,12 +142,12 @@ public class NativeAudioPlugin extends Plugin {
 
             @Override
             public void onNext() {
-                notifyListeners("mediaAction", jsObj("action", "next"));
+                handler.post(() -> playNextInQueue());
             }
 
             @Override
             public void onPrevious() {
-                notifyListeners("mediaAction", jsObj("action", "previous"));
+                handler.post(() -> playPrevInQueue());
             }
         });
     }
@@ -148,60 +163,47 @@ public class NativeAudioPlugin extends Plugin {
         String title = call.getString("title", "");
         String artist = call.getString("artist", "");
         String cover = call.getString("cover", "");
-        currentTitle = title;
-        currentArtist = artist;
 
         handler.post(() -> {
-            try {
-                releasePlayer();
-
-                mediaPlayer = new MediaPlayer();
-                mediaPlayer.setAudioAttributes(
-                    new AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                );
-
-                mediaPlayer.setDataSource(url);
-
-                mediaPlayer.setOnPreparedListener(mp -> {
-                    isPrepared = true;
-                    mp.start();
-                    requestAudioFocus();
-                    startForegroundService();
-                    startTimeUpdates();
-
-                    updateServiceMeta(currentTitle, currentArtist, mp.getDuration(), cover);
-                    updateServiceState(true);
-
-                    JSObject ret = new JSObject();
-                    ret.put("duration", mp.getDuration() / 1000.0);
-                    notifyListeners("prepared", ret);
-                });
-
-                mediaPlayer.setOnCompletionListener(mp -> {
-                    stopTimeUpdates();
-                    updateServiceState(false);
-                    notifyListeners("ended", new JSObject());
-                });
-
-                mediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                    isPrepared = false;
-                    stopTimeUpdates();
-                    JSObject err = new JSObject();
-                    err.put("message", "MediaPlayer error: " + what + "/" + extra);
-                    notifyListeners("error", err);
-                    return true;
-                });
-
-                mediaPlayer.prepareAsync();
-                call.resolve();
-            } catch (IOException e) {
-                Log.e(TAG, "play failed", e);
-                call.reject("Failed to play: " + e.getMessage());
-            }
+            playUrl(url, title, artist, cover);
+            call.resolve();
         });
+    }
+
+    @PluginMethod
+    public void setQueue(PluginCall call) {
+        try {
+            JSArray items = call.getArray("items");
+            int index = call.getInt("index", 0);
+            String mode = call.getString("playMode", "sequence");
+            String base = call.getString("baseUrl", "");
+
+            queue.clear();
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    queue.add(items.getJSONObject(i));
+                }
+            }
+            queueIndex = index;
+            playMode = mode;
+            baseUrl = base;
+
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to set queue: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void updateQueueIndex(PluginCall call) {
+        queueIndex = call.getInt("index", queueIndex);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void setPlayMode(PluginCall call) {
+        playMode = call.getString("playMode", "sequence");
+        call.resolve();
     }
 
     @PluginMethod
@@ -259,39 +261,174 @@ public class NativeAudioPlugin extends Plugin {
         });
     }
 
-    @PluginMethod
-    public void getDuration(PluginCall call) {
-        handler.post(() -> {
-            JSObject ret = new JSObject();
-            if (mediaPlayer != null && isPrepared) {
-                ret.put("duration", mediaPlayer.getDuration() / 1000.0);
-            } else {
-                ret.put("duration", 0);
+    private void playNextInQueue() {
+        if (queue.isEmpty()) return;
+
+        int nextIdx;
+        if ("loop".equals(playMode)) {
+            nextIdx = queueIndex;
+        } else if ("random".equals(playMode)) {
+            nextIdx = (int) (Math.random() * queue.size());
+        } else {
+            nextIdx = (queueIndex + 1) % queue.size();
+        }
+
+        queueIndex = nextIdx;
+        playTrackAtIndex(nextIdx);
+    }
+
+    private void playPrevInQueue() {
+        if (queue.isEmpty()) return;
+
+        int prevIdx;
+        if ("random".equals(playMode)) {
+            prevIdx = (int) (Math.random() * queue.size());
+        } else {
+            prevIdx = queueIndex <= 0 ? queue.size() - 1 : queueIndex - 1;
+        }
+
+        queueIndex = prevIdx;
+        playTrackAtIndex(prevIdx);
+    }
+
+    private void playTrackAtIndex(int index) {
+        if (index < 0 || index >= queue.size()) return;
+
+        JSONObject track = queue.get(index);
+        String source = track.optString("source", "bilibili");
+        String title = track.optString("title", "");
+        String artist = track.optString("artist", "");
+        String cover = track.optString("cover", "");
+
+        JSObject changed = new JSObject();
+        changed.put("index", index);
+        changed.put("source", source);
+        notifyListeners("trackChanged", changed);
+
+        executor.execute(() -> {
+            try {
+                String audioUrl = fetchAudioUrl(track, source);
+                if (audioUrl != null && !audioUrl.isEmpty()) {
+                    handler.post(() -> playUrl(audioUrl, title, artist, cover));
+                } else {
+                    Log.w(TAG, "No audio URL for track at index " + index + ", skipping");
+                    handler.post(() -> {
+                        JSObject skip = new JSObject();
+                        skip.put("index", index);
+                        skip.put("reason", "no_url");
+                        notifyListeners("trackSkipped", skip);
+                        playNextInQueue();
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to fetch URL for track " + index, e);
+                handler.post(() -> {
+                    JSObject skip = new JSObject();
+                    skip.put("index", index);
+                    skip.put("reason", e.getMessage());
+                    notifyListeners("trackSkipped", skip);
+                    playNextInQueue();
+                });
             }
-            call.resolve(ret);
         });
     }
 
-    @PluginMethod
-    public void getCurrentTime(PluginCall call) {
-        handler.post(() -> {
-            JSObject ret = new JSObject();
-            if (mediaPlayer != null && isPrepared) {
-                ret.put("currentTime", mediaPlayer.getCurrentPosition() / 1000.0);
-            } else {
-                ret.put("currentTime", 0);
+    private String fetchAudioUrl(JSONObject track, String source) throws Exception {
+        if (baseUrl.isEmpty()) return null;
+
+        String apiUrl;
+        if ("netease".equals(source)) {
+            String sourceId = track.optString("sourceId", "");
+            apiUrl = baseUrl + "/music/url/netease/" + sourceId;
+        } else if ("qq".equals(source)) {
+            String sourceId = track.optString("sourceId", "");
+            apiUrl = baseUrl + "/music/url/qq/" + sourceId;
+        } else {
+            String bvid = track.optString("bvid", "");
+            int cid = track.optInt("cid", 0);
+            apiUrl = baseUrl + "/video/audio/" + bvid + "/" + cid;
+        }
+
+        URL url = new URL(apiUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+        conn.setRequestProperty("Accept", "application/json");
+
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+            reader.close();
+
+            JSONObject json = new JSONObject(sb.toString());
+            if (json.optInt("code") != 0) return null;
+
+            JSONObject data = json.optJSONObject("data");
+            if (data == null) return null;
+
+            String audioUrl = data.optString("url", "");
+            if (!audioUrl.isEmpty()) return audioUrl;
+
+            if ("bilibili".equals(source)) {
+                return baseUrl + "/audio/proxy?url=" + java.net.URLEncoder.encode(audioUrl, "UTF-8");
             }
-            call.resolve(ret);
-        });
+            return null;
+        } finally {
+            conn.disconnect();
+        }
     }
 
-    @PluginMethod
-    public void isPlaying(PluginCall call) {
-        handler.post(() -> {
-            JSObject ret = new JSObject();
-            ret.put("isPlaying", mediaPlayer != null && isPrepared && mediaPlayer.isPlaying());
-            call.resolve(ret);
-        });
+    private void playUrl(String url, String title, String artist, String cover) {
+        try {
+            releasePlayer();
+
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setAudioAttributes(
+                new AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            );
+
+            mediaPlayer.setDataSource(url);
+
+            mediaPlayer.setOnPreparedListener(mp -> {
+                isPrepared = true;
+                mp.start();
+                requestAudioFocus();
+                startForegroundService();
+                startTimeUpdates();
+
+                updateServiceMeta(title, artist, mp.getDuration(), cover);
+                updateServiceState(true);
+
+                JSObject ret = new JSObject();
+                ret.put("duration", mp.getDuration() / 1000.0);
+                notifyListeners("prepared", ret);
+            });
+
+            mediaPlayer.setOnCompletionListener(mp -> {
+                stopTimeUpdates();
+                updateServiceState(false);
+                notifyListeners("ended", new JSObject());
+                playNextInQueue();
+            });
+
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                isPrepared = false;
+                stopTimeUpdates();
+                JSObject err = new JSObject();
+                err.put("message", "MediaPlayer error: " + what + "/" + extra);
+                notifyListeners("error", err);
+                return true;
+            });
+
+            mediaPlayer.prepareAsync();
+        } catch (IOException e) {
+            Log.e(TAG, "playUrl failed", e);
+        }
     }
 
     private void requestAudioFocus() {
@@ -302,9 +439,7 @@ public class NativeAudioPlugin extends Plugin {
 
         focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(attrs)
-            .setOnAudioFocusChangeListener(focusChange -> {
-                // Intentionally ignore all focus changes to allow mixing with other apps
-            })
+            .setOnAudioFocusChangeListener(focusChange -> { })
             .build();
 
         audioManager.requestAudioFocus(focusRequest);
@@ -343,9 +478,7 @@ public class NativeAudioPlugin extends Plugin {
                         data.put("currentTime", mediaPlayer.getCurrentPosition() / 1000.0);
                         data.put("duration", mediaPlayer.getDuration() / 1000.0);
                         notifyListeners("timeUpdate", data);
-                    } catch (IllegalStateException e) {
-                        // Player was released
-                    }
+                    } catch (IllegalStateException e) { }
                 }
                 handler.postDelayed(this, 500);
             }
@@ -364,9 +497,7 @@ public class NativeAudioPlugin extends Plugin {
         stopTimeUpdates();
         if (mediaPlayer != null) {
             isPrepared = false;
-            try {
-                mediaPlayer.stop();
-            } catch (IllegalStateException e) { /* ignore */ }
+            try { mediaPlayer.stop(); } catch (IllegalStateException e) { }
             mediaPlayer.release();
             mediaPlayer = null;
         }

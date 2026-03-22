@@ -22,6 +22,15 @@ interface AudioAdapter {
   onEnded(cb: () => void): void;
   onError(cb: (err: any) => void): void;
   onMediaAction?(cb: (action: string) => void): void;
+  onTrackChanged?(cb: (index: number) => void): void;
+  syncQueue?(items: any[], index: number, playMode: string): void;
+  syncPlayMode?(mode: string): void;
+  syncIndex?(index: number): void;
+}
+
+function getNativeBaseUrl(): string {
+  const isNativeDev = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+  return isNativeDev ? 'https://tang2000-jollymusic.hf.space/api' : '/api';
 }
 
 function createNativeAudioAdapter(): AudioAdapter {
@@ -32,6 +41,7 @@ function createNativeAudioAdapter(): AudioAdapter {
   let endedCb: (() => void) | null = null;
   let errorCb: ((err: any) => void) | null = null;
   let mediaActionCb: ((action: string) => void) | null = null;
+  let trackChangedCb: ((index: number) => void) | null = null;
 
   NativeAudio.addListener('timeUpdate', (data: any) => {
     timeUpdateCb?.(data.currentTime, data.duration);
@@ -44,6 +54,9 @@ function createNativeAudioAdapter(): AudioAdapter {
   });
   NativeAudio.addListener('mediaAction', (data: any) => {
     mediaActionCb?.(data.action);
+  });
+  NativeAudio.addListener('trackChanged', (data: any) => {
+    trackChangedCb?.(data.index);
   });
 
   return {
@@ -62,10 +75,20 @@ function createNativeAudioAdapter(): AudioAdapter {
     stop() {
       NativeAudio.stop();
     },
+    syncQueue(items: any[], index: number, playMode: string) {
+      NativeAudio.setQueue({ items, index, playMode, baseUrl: getNativeBaseUrl() });
+    },
+    syncPlayMode(mode: string) {
+      NativeAudio.setPlayMode({ playMode: mode });
+    },
+    syncIndex(index: number) {
+      NativeAudio.updateQueueIndex({ index });
+    },
     onTimeUpdate(cb) { timeUpdateCb = cb; },
     onEnded(cb) { endedCb = cb; },
     onError(cb) { errorCb = cb; },
     onMediaAction(cb) { mediaActionCb = cb; },
+    onTrackChanged(cb) { trackChangedCb = cb; },
   };
 }
 
@@ -126,7 +149,9 @@ export const usePlayerStore = defineStore('player', () => {
         totalDuration.value = d;
       });
       audio.onEnded(() => {
-        playNext();
+        if (!isNativePlatform()) {
+          playNext();
+        }
       });
       audio.onError((err) => {
         console.error('Audio error:', err);
@@ -149,8 +174,31 @@ export const usePlayerStore = defineStore('player', () => {
             break;
         }
       });
+
+      audio.onTrackChanged?.((index) => {
+        if (index >= 0 && index < queue.value.length) {
+          currentIndex.value = index;
+          currentTrack.value = { ...queue.value[index] };
+          isPlaying.value = true;
+        }
+      });
     }
     return audio;
+  }
+
+  function syncQueueToNative() {
+    const a = getAudio();
+    if (!a.syncQueue) return;
+    const items = queue.value.map(t => ({
+      source: t.source || 'bilibili',
+      sourceId: t.sourceId || '',
+      bvid: t.bvid || '',
+      cid: t.cid || 0,
+      title: t.title,
+      artist: t.artist,
+      cover: t.cover,
+    }));
+    a.syncQueue(items, currentIndex.value, playMode.value);
   }
 
   async function play(track: PlayingTrack) {
@@ -193,6 +241,8 @@ export const usePlayerStore = defineStore('player', () => {
       if (idx >= 0) {
         currentIndex.value = idx;
       }
+
+      syncQueueToNative();
     } catch (err: any) {
       console.error('Play failed:', err);
       uni.showToast({ title: err.message || '播放失败', icon: 'none' });
@@ -262,7 +312,7 @@ export const usePlayerStore = defineStore('player', () => {
 
   function addToQueue(track: PlayingTrack) {
     const exists = queue.value.some(
-      (t) => t.bvid === track.bvid && t.cid === track.cid
+      (t) => t.id === track.id || (t.bvid === track.bvid && t.cid === track.cid && t.bvid !== '')
     );
     if (!exists) {
       queue.value.push(track);
@@ -325,6 +375,8 @@ export const usePlayerStore = defineStore('player', () => {
     const modes: PlayMode[] = ['sequence', 'random', 'loop'];
     const idx = modes.indexOf(playMode.value);
     playMode.value = modes[(idx + 1) % modes.length];
+    const a = audio;
+    a?.syncPlayMode?.(playMode.value);
   }
 
   const playModeLabel = computed(() => {
