@@ -8,6 +8,8 @@
 
 Android APK 下载：[GitHub Releases](https://github.com/JollyTang/JollyMusic/releases)
 
+> 当前后端部署在海外，网易云和B站正常可用，QQ音乐部分歌曲可能受地域限制无法播放。
+
 ## 功能特性
 
 - **网易云音乐** — 搜索歌名/歌手，直接播放（标准音质免登录，VIP 歌曲自动标记）
@@ -83,6 +85,12 @@ cd app && npm install && npm run dev:h5
 | `GET /api/audio/proxy?url=` | 代理音频流 |
 | `GET /api/audio/image?url=` | 代理B站封面图片 |
 | `GET /api/health` | 健康检查 |
+
+## 注意事项
+
+- **QQ音乐**：当前后端部署在海外服务器（Hugging Face Spaces），QQ音乐 API 对海外 IP 有限制，部分歌曲可能无法播放、VIP 标识不准确。部署到国内服务器后可正常使用。
+- **网易云音乐**：已通过 `realIP` 参数绕过地域限制，海外服务器也可正常使用。
+- **B站音频**：不受服务器地域影响，始终正常。
 
 ## 部署
 
