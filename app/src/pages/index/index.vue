@@ -223,10 +223,10 @@ async function handleSearch() {
   if (isBvInput(raw)) {
     currentPlatform.value = 'bilibili';
     await searchBilibili(raw);
-  } else if (currentPlatform.value === 'netease') {
-    await searchNetease(raw);
+  } else if (currentPlatform.value === 'bilibili') {
+    uni.showToast({ title: '请输入BV号，或切换到「网易云」搜歌名', icon: 'none', duration: 2500 });
   } else {
-    await searchBilibili(raw);
+    await searchNetease(raw);
   }
 }
 
