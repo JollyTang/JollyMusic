@@ -17,12 +17,27 @@ export async function searchSongs(keyword: string, limit = 20): Promise<NeteaseT
     return [];
   }
 
-  return res.body.result.songs.map((song: any) => ({
+  const songs = res.body.result.songs;
+  const ids = songs.map((s: any) => s.id).join(',');
+
+  let coverMap: Record<number, string> = {};
+  try {
+    const detailRes = await (NeteaseApi as any).song_detail({ ids });
+    if (detailRes.status === 200 && detailRes.body?.songs) {
+      for (const s of detailRes.body.songs) {
+        coverMap[s.id] = s.al?.picUrl || '';
+      }
+    }
+  } catch {
+    // fall back to no cover
+  }
+
+  return songs.map((song: any) => ({
     id: song.id,
     name: song.name,
     artists: song.artists?.map((a: any) => a.name).join(' / ') || '',
     album: song.album?.name || '',
-    cover: song.album?.artist?.img1v1Url || '',
+    cover: coverMap[song.id] || '',
     duration: Math.floor((song.duration || 0) / 1000),
     isVip: song.fee === 1,
   }));

@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { searchSongs } from '../netease/search';
-import { getSongUrl, getSongDetail } from '../netease/song';
+import { searchSongs as searchNetease } from '../netease/search';
+import { getSongUrl as getNeteaseUrl, getSongDetail } from '../netease/song';
+import { searchSongs as searchQQ } from '../qqmusic/search';
+import { getSongUrl as getQQUrl } from '../qqmusic/song';
 
 export const musicRouter = Router();
 
@@ -11,12 +13,16 @@ musicRouter.get('/search', async (req, res) => {
       return res.status(400).json({ code: -1, message: 'keyword is required' });
     }
 
+    let tracks;
     if (platform === 'netease') {
-      const tracks = await searchSongs(keyword, Number(limit));
-      res.json({ code: 0, data: tracks });
+      tracks = await searchNetease(keyword, Number(limit));
+    } else if (platform === 'qq') {
+      tracks = await searchQQ(keyword, Number(limit));
     } else {
-      res.status(400).json({ code: -1, message: `Unsupported platform: ${platform}` });
+      return res.status(400).json({ code: -1, message: `Unsupported platform: ${platform}` });
     }
+
+    res.json({ code: 0, data: tracks });
   } catch (err: any) {
     res.status(500).json({ code: -1, message: err.message });
   }
@@ -26,15 +32,19 @@ musicRouter.get('/url/:platform/:id', async (req, res) => {
   try {
     const { platform, id } = req.params;
 
+    let result;
     if (platform === 'netease') {
-      const result = await getSongUrl(Number(id));
-      if (!result.url) {
-        return res.json({ code: -1, message: 'VIP歌曲或暂无音源' });
-      }
-      res.json({ code: 0, data: result });
+      result = await getNeteaseUrl(Number(id));
+    } else if (platform === 'qq') {
+      result = await getQQUrl(id);
     } else {
-      res.status(400).json({ code: -1, message: `Unsupported platform: ${platform}` });
+      return res.status(400).json({ code: -1, message: `Unsupported platform: ${platform}` });
     }
+
+    if (!result.url) {
+      return res.json({ code: -1, message: 'VIP歌曲或暂无音源' });
+    }
+    res.json({ code: 0, data: result });
   } catch (err: any) {
     res.status(500).json({ code: -1, message: err.message });
   }

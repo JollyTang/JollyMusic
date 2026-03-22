@@ -159,13 +159,15 @@ export const usePlayerStore = defineStore('player', () => {
       let audioUrl: string;
       let coverUrl: string;
 
-      if (source === 'netease') {
+      if (source === 'netease' || source === 'qq') {
         if (track.isVip) {
-          uni.showToast({ title: '该歌曲需要网易云VIP', icon: 'none' });
+          uni.showToast({ title: `该歌曲需要${source === 'netease' ? '网易云' : 'QQ音乐'}VIP`, icon: 'none' });
           playNext();
           return;
         }
-        const songUrl = await api.getNeteaseSongUrl(Number(track.sourceId));
+        const songUrl = source === 'netease'
+          ? await api.getNeteaseSongUrl(Number(track.sourceId))
+          : await api.getQQSongUrl(track.sourceId!);
         if (!songUrl.url) {
           uni.showToast({ title: 'VIP歌曲或暂无音源', icon: 'none' });
           playNext();

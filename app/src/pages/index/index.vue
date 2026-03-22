@@ -11,6 +11,13 @@
       </view>
       <view
         class="tab-item"
+        :class="{ active: currentPlatform === 'qq' }"
+        @tap="switchPlatform('qq')"
+      >
+        <text class="tab-text">QQ音乐</text>
+      </view>
+      <view
+        class="tab-item"
         :class="{ active: currentPlatform === 'bilibili' }"
         @tap="switchPlatform('bilibili')"
       >
@@ -39,11 +46,11 @@
     <!-- Loading -->
     <view v-if="loading" class="loading-wrap">
       <view class="loading-spinner" />
-      <text class="loading-text">{{ currentPlatform === 'netease' ? '搜索中...' : '正在获取视频信息...' }}</text>
+      <text class="loading-text">{{ currentPlatform === 'bilibili' ? '正在获取视频信息...' : '搜索中...' }}</text>
     </view>
 
-    <!-- NetEase Results -->
-    <view v-else-if="currentPlatform === 'netease' && neteaseResults.length > 0" class="netease-results">
+    <!-- Music Search Results (NetEase / QQ) -->
+    <view v-else-if="(currentPlatform === 'netease' || currentPlatform === 'qq') && neteaseResults.length > 0" class="netease-results">
       <view class="result-header">
         <text class="result-count">找到 {{ neteaseResults.length }} 首歌曲</text>
       </view>
@@ -51,8 +58,8 @@
         v-for="song in neteaseResults"
         :key="song.id"
         class="song-item"
-        :class="{ 'song-vip': song.isVip, 'song-playing': isNeteasePlaying(song) }"
-        @tap="!song.isVip && playNetease(song)"
+        :class="{ 'song-vip': song.isVip, 'song-playing': isSongPlaying(song) }"
+        @tap="!song.isVip && playSong(song)"
       >
         <view class="song-cover-wrap">
           <image v-if="song.cover" class="song-cover" :src="song.cover" mode="aspectFill" />
@@ -62,14 +69,14 @@
         </view>
         <view class="song-info">
           <view class="song-title-row">
-            <text class="song-name" :class="{ 'name-active': isNeteasePlaying(song) }">{{ song.name }}</text>
+            <text class="song-name" :class="{ 'name-active': isSongPlaying(song) }">{{ song.name }}</text>
             <text v-if="song.isVip" class="vip-badge">VIP</text>
           </view>
           <text class="song-artist">{{ song.artists }}</text>
           <text class="song-album">{{ song.album }} · {{ formatDuration(song.duration) }}</text>
         </view>
         <view class="song-actions" @tap.stop>
-          <view v-if="!song.isVip" class="song-action-btn" @tap="addNeteaseToPlaylist(song)">
+          <view v-if="!song.isVip" class="song-action-btn" @tap="addSongToPlaylist(song)">
             <text class="song-action-text">+</text>
           </view>
           <view v-else class="song-action-btn disabled">
@@ -188,16 +195,17 @@ const searchStore = useSearchStore();
 const playlistStore = usePlaylistStore();
 
 const searchInput = ref('');
-const currentPlatform = ref<'netease' | 'bilibili'>('netease');
+const currentPlatform = ref<'netease' | 'qq' | 'bilibili'>('netease');
 const videoInfo = ref<VideoInfo | null>(null);
 const neteaseResults = ref<NeteaseSearchTrack[]>([]);
 const loading = ref(false);
 
-const searchPlaceholder = computed(() =>
-  currentPlatform.value === 'netease' ? '搜索歌名、歌手' : '输入B站BV号或视频链接'
-);
+const searchPlaceholder = computed(() => {
+  if (currentPlatform.value === 'bilibili') return '输入B站BV号或视频链接';
+  return '搜索歌名、歌手';
+});
 
-function switchPlatform(platform: 'netease' | 'bilibili') {
+function switchPlatform(platform: 'netease' | 'qq' | 'bilibili') {
   currentPlatform.value = platform;
   videoInfo.value = null;
   neteaseResults.value = [];
@@ -224,7 +232,9 @@ async function handleSearch() {
     currentPlatform.value = 'bilibili';
     await searchBilibili(raw);
   } else if (currentPlatform.value === 'bilibili') {
-    uni.showToast({ title: '请输入BV号，或切换到「网易云」搜歌名', icon: 'none', duration: 2500 });
+    uni.showToast({ title: '请输入BV号，或切换到其他平台搜歌名', icon: 'none', duration: 2500 });
+  } else if (currentPlatform.value === 'qq') {
+    await searchQQ(raw);
   } else {
     await searchNetease(raw);
   }
@@ -272,10 +282,28 @@ async function searchNetease(keyword: string) {
   }
 }
 
-function playNetease(song: NeteaseSearchTrack) {
+async function searchQQ(keyword: string) {
+  loading.value = true;
+  videoInfo.value = null;
+  neteaseResults.value = [];
+  try {
+    neteaseResults.value = await api.searchQQ(keyword);
+    searchStore.addHistory(keyword);
+    if (neteaseResults.value.length === 0) {
+      uni.showToast({ title: '没有找到相关歌曲', icon: 'none' });
+    }
+  } catch (err: any) {
+    uni.showToast({ title: err.message || '搜索失败', icon: 'none' });
+  } finally {
+    loading.value = false;
+  }
+}
+
+function playSong(song: NeteaseSearchTrack) {
+  const source = currentPlatform.value as 'netease' | 'qq';
   const track = {
-    id: `netease_${song.id}`,
-    source: 'netease' as const,
+    id: `${source}_${song.id}`,
+    source,
     sourceId: String(song.id),
     bvid: '',
     cid: 0,
@@ -289,12 +317,13 @@ function playNetease(song: NeteaseSearchTrack) {
   playerStore.play(track);
 }
 
-function isNeteasePlaying(song: NeteaseSearchTrack): boolean {
+function isSongPlaying(song: NeteaseSearchTrack): boolean {
   const ct = playerStore.currentTrack;
-  return !!ct && ct.source === 'netease' && ct.sourceId === String(song.id);
+  return !!ct && ct.sourceId === String(song.id) && (ct.source === 'netease' || ct.source === 'qq');
 }
 
-function addNeteaseToPlaylist(song: NeteaseSearchTrack) {
+function addSongToPlaylist(song: NeteaseSearchTrack) {
+  const source = currentPlatform.value as 'netease' | 'qq';
   playlistStore.fetchPlaylists();
   if (playlistStore.playlists.length === 0) {
     uni.showModal({
@@ -317,7 +346,7 @@ function addNeteaseToPlaylist(song: NeteaseSearchTrack) {
         artist: song.artists,
         cover: song.cover,
         duration: song.duration,
-        source: 'netease',
+        source,
         sourceId: String(song.id),
       });
     },

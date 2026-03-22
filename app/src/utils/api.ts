@@ -111,7 +111,15 @@ export const api = {
     return request<NeteaseSearchTrack[]>(`/music/search?keyword=${encodeURIComponent(keyword)}&platform=netease&limit=${limit}`);
   },
 
+  searchQQ(keyword: string, limit = 20) {
+    return request<NeteaseSearchTrack[]>(`/music/search?keyword=${encodeURIComponent(keyword)}&platform=qq&limit=${limit}`);
+  },
+
   getNeteaseSongUrl(id: number) {
     return request<NeteaseSongUrl>(`/music/url/netease/${id}`);
+  },
+
+  getQQSongUrl(mid: string) {
+    return request<NeteaseSongUrl>(`/music/url/qq/${mid}`);
   },
 };
