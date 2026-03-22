@@ -11,7 +11,7 @@ export interface NeteaseTrack {
 }
 
 export async function searchSongs(keyword: string, limit = 20): Promise<NeteaseTrack[]> {
-  const res = await (NeteaseApi as any).search({ keywords: keyword, limit, type: 1 });
+  const res = await (NeteaseApi as any).search({ keywords: keyword, limit, type: 1, realIP: '116.25.146.177' });
 
   if (res.status !== 200 || !res.body?.result?.songs) {
     return [];
@@ -22,7 +22,7 @@ export async function searchSongs(keyword: string, limit = 20): Promise<NeteaseT
 
   let coverMap: Record<number, string> = {};
   try {
-    const detailRes = await (NeteaseApi as any).song_detail({ ids });
+    const detailRes = await (NeteaseApi as any).song_detail({ ids, realIP: '116.25.146.177' });
     if (detailRes.status === 200 && detailRes.body?.songs) {
       for (const s of detailRes.body.songs) {
         coverMap[s.id] = s.al?.picUrl || '';

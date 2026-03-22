@@ -6,7 +6,7 @@ export interface NeteaseSongUrl {
 }
 
 export async function getSongUrl(id: number): Promise<NeteaseSongUrl> {
-  const res = await (NeteaseApi as any).song_url({ id, br: 320000 });
+  const res = await (NeteaseApi as any).song_url({ id, br: 320000, realIP: '116.25.146.177' });
 
   if (res.status !== 200 || !res.body?.data?.[0]) {
     return { url: null, br: 0 };
@@ -30,7 +30,7 @@ export interface NeteaseSongDetail {
 }
 
 export async function getSongDetail(id: number): Promise<NeteaseSongDetail | null> {
-  const res = await (NeteaseApi as any).song_detail({ ids: String(id) });
+  const res = await (NeteaseApi as any).song_detail({ ids: String(id), realIP: '116.25.146.177' });
 
   if (res.status !== 200 || !res.body?.songs?.[0]) {
     return null;

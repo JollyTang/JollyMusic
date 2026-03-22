@@ -28,6 +28,8 @@ export async function searchSongs(keyword: string, limit = 20): Promise<QQMusicT
       'Content-Type': 'application/json;charset=utf-8',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/115.0',
       Referer: 'https://y.qq.com/',
+      'X-Real-IP': '116.25.146.177',
+      'X-Forwarded-For': '116.25.146.177',
     },
     body,
   });
